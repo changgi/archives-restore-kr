@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Archives Restore Korea
+
+> Explore Korea's national archival restoration cases through an interactive, modern web experience.
+
+National Archives of Korea's document restoration cases — reimagined with interactive before/after comparisons, timeline visualizations, and a beautiful dark-themed interface.
+
+## Features
+
+- **Before/After Image Comparison** — Drag slider to compare restoration results
+- **Interactive Timeline** — Explore 45 restoration cases from 2009 to 2025
+- **Smart Filtering** — Filter by category, year, organization, and support type
+- **Real-time Search** — Instant search across all restoration cases
+- **Gallery View** — Masonry grid with fullscreen lightbox
+- **Dark Mode** — Beautiful dark theme with gold/red accents inspired by Korean heritage
+- **Fully Responsive** — Optimized for mobile, tablet, and desktop
+- **Accessible** — Keyboard navigation, ARIA labels, semantic HTML
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15 (App Router, Server Components) |
+| Database | Supabase (PostgreSQL + Row Level Security) |
+| Styling | Tailwind CSS 4 + CSS Variables |
+| Animation | Framer Motion 11 |
+| Icons | Lucide React |
+| Deployment | Vercel |
+| Language | TypeScript 5 (strict mode) |
+
+## Data Source
+
+All restoration case data is sourced from the [National Archives of Korea](https://www.archives.go.kr/) (국가기록원).
+
+- **45 restoration cases** (39 paper + 6 audiovisual)
+- **34 requesting organizations**
+- **88 before/after images**
+- **Year range**: 2009-2025
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/archives-restore-kr.git
+cd archives-restore-kr
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/                    # Next.js App Router pages
+│   ├── page.tsx           # Home - Hero + Stats + Recent cases
+│   ├── cases/
+│   │   ├── page.tsx       # Case list with search and filters
+│   │   └── [id]/page.tsx  # Case detail with Before/After slider
+│   ├── timeline/page.tsx  # Interactive timeline
+│   ├── gallery/page.tsx   # Masonry gallery with lightbox
+│   └── about/page.tsx     # About page
+├── components/            # React components
+│   ├── NavigationBar.tsx  # Responsive nav with dark mode toggle
+│   ├── HeroSection.tsx    # Full-screen hero banner
+│   ├── ImageCompareSlider.tsx  # Before/After drag comparison
+│   ├── StatsCounter.tsx   # Animated statistics
+│   ├── RecordCard.tsx     # Case card component
+│   ├── FilterBar.tsx      # Category/year/org filters
+│   ├── SearchBar.tsx      # Real-time search
+│   ├── TimelineView.tsx   # Timeline visualization
+│   └── GalleryGrid.tsx    # Masonry grid + lightbox
+├── lib/
+│   ├── supabase.ts        # Supabase client configuration
+│   └── queries.ts         # Data fetching functions
+└── types/
+    └── index.ts           # TypeScript type definitions
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+MIT License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Acknowledgments
+
+- Data: [National Archives of Korea](https://www.archives.go.kr/) (국가기록원)
+- Built with [Next.js](https://nextjs.org/), [Supabase](https://supabase.com/), [Vercel](https://vercel.com/)
