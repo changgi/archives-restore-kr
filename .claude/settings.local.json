@@ -8,7 +8,8 @@
       "Bash(npx create-next-app@latest . --typescript --tailwind --app --src-dir --turbopack --yes)",
       "Bash(mv /c/project_restore/_workspace /c/project_restore_workspace_backup)",
       "Bash(npx create-next-app@latest /c/project_restore --typescript --tailwind --app --src-dir --turbopack --yes)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npx vercel:*)"
     ]
   }
 }

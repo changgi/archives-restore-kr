@@ -1,12 +1,19 @@
 import HeroSection from '@/components/HeroSection'
 import StatsCounter from '@/components/StatsCounter'
 import RecordCard from '@/components/RecordCard'
-import { getAllCases, getStats } from '@/lib/queries'
+import { getAllCases, getStats, getFeaturedStories, getRelatedVideos } from '@/lib/queries'
 import Link from 'next/link'
+import HomeFeatured from './HomeFeatured'
 
 export default async function HomePage() {
-  const [cases, stats] = await Promise.all([getAllCases(), getStats()])
+  const [cases, stats, stories, videos] = await Promise.all([
+    getAllCases(),
+    getStats(),
+    getFeaturedStories(),
+    getRelatedVideos(),
+  ])
   const recentCases = cases.slice(0, 3)
+  const previewVideos = videos.slice(0, 3)
 
   return (
     <>
@@ -17,6 +24,41 @@ export default async function HomePage() {
         totalOrgs={stats.totalOrganizations}
         yearRange={stats.yearRange}
       />
+
+      {/* Featured Stories */}
+      {stories.length > 0 && (
+        <section className="py-16 md:py-24" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-end justify-between mb-10">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--color-text)' }}>
+                  <span style={{ color: 'var(--color-gold)' }}>기획</span>전시
+                </h2>
+                <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  소장 기록물의 복원 이야기를 체험하세요
+                </p>
+              </div>
+              <Link
+                href="/stories"
+                className="hidden sm:inline-flex items-center gap-1 text-sm font-medium transition-colors hover:underline"
+                style={{ color: 'var(--color-gold)' }}
+              >
+                전체 보기 &rarr;
+              </Link>
+            </div>
+            <HomeFeatured stories={stories} />
+            <div className="mt-8 text-center sm:hidden">
+              <Link
+                href="/stories"
+                className="inline-flex items-center gap-1 text-sm font-medium"
+                style={{ color: 'var(--color-gold)' }}
+              >
+                전체 보기 &rarr;
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Recent cases section */}
       <section className="py-16 md:py-24">
@@ -56,6 +98,67 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Education Videos */}
+      {previewVideos.length > 0 && (
+        <section className="py-16 md:py-24" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-end justify-between mb-10">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--color-text)' }}>
+                  <span style={{ color: 'var(--color-gold)' }}>보존</span> 교육
+                </h2>
+                <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  기록물 복원 과정을 영상으로 확인하세요
+                </p>
+              </div>
+              <Link
+                href="/learn"
+                className="hidden sm:inline-flex items-center gap-1 text-sm font-medium transition-colors hover:underline"
+                style={{ color: 'var(--color-gold)' }}
+              >
+                전체 보기 &rarr;
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {previewVideos.map((v) => (
+                <Link
+                  key={v.id}
+                  href="/learn"
+                  className="group rounded-xl overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-gold)]/50 transition-all"
+                  style={{ backgroundColor: 'var(--color-bg-card)' }}
+                >
+                  <div className="relative aspect-video overflow-hidden">
+                    {v.thumbnail_url ? (
+                      <img
+                        src={v.thumbnail_url}
+                        alt={v.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[var(--color-bg-secondary)]" />
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="text-sm font-medium line-clamp-2 group-hover:text-[var(--color-gold)] transition-colors">
+                      {v.title}
+                    </h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="mt-8 text-center sm:hidden">
+              <Link
+                href="/learn"
+                className="inline-flex items-center gap-1 text-sm font-medium"
+                style={{ color: 'var(--color-gold)' }}
+              >
+                전체 보기 &rarr;
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA */}
       <section className="py-16" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>

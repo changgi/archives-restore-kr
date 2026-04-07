@@ -8,6 +8,8 @@ import { Menu, X, Sun, Moon } from 'lucide-react'
 const navLinks = [
   { href: '/', label: '홈' },
   { href: '/cases', label: '복원 사례' },
+  { href: '/stories', label: '기획전시' },
+  { href: '/learn', label: '보존교육' },
   { href: '/timeline', label: '타임라인' },
   { href: '/gallery', label: '갤러리' },
   { href: '/about', label: '소개' },

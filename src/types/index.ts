@@ -45,3 +45,52 @@ export interface Stats {
   totalOrganizations: number
   yearRange: { min: number; max: number }
 }
+
+export interface FeaturedStory {
+  id: string
+  slug: string
+  title: string
+  subtitle: string | null
+  description: string | null
+  producing_org: string | null
+  production_period: string | null
+  before_image_url: string | null
+  after_image_url: string | null
+  external_link: string | null
+  external_link_label: string | null
+  video_url: string | null
+  sort_order: number | null
+  created_at: string | null
+  story_items: StoryItem[]
+}
+
+export interface StoryItem {
+  id: string
+  story_id: string
+  title: string
+  year: string | null
+  repository: string | null
+  thumbnail_url: string | null
+  detail_link: string | null
+  description: string | null
+  sort_order: number | null
+  created_at: string | null
+  story_item_images: StoryItemImage[]
+}
+
+export interface StoryItemImage {
+  id: string
+  item_id: string
+  image_url: string
+  alt_text: string | null
+  sort_order: number | null
+  created_at: string | null
+}
+
+export interface RelatedVideo {
+  id: string
+  title: string
+  video_url: string
+  thumbnail_url: string | null
+  created_at: string | null
+}

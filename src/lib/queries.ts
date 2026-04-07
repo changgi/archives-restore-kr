@@ -1,5 +1,5 @@
 import { createServerClient } from './supabase'
-import type { RestorationCase, Organization, CaseFilters, Stats } from '@/types'
+import type { RestorationCase, Organization, CaseFilters, Stats, FeaturedStory, RelatedVideo } from '@/types'
 
 export async function getAllCases(filters?: CaseFilters): Promise<RestorationCase[]> {
   const supabase = createServerClient()
@@ -174,4 +174,64 @@ export async function getStats(): Promise<Stats> {
       max: years.length > 0 ? Math.max(...years) : 2025,
     },
   }
+}
+
+export async function getFeaturedStories(): Promise<FeaturedStory[]> {
+  const supabase = createServerClient()
+
+  const { data, error } = await supabase
+    .from('featured_stories')
+    .select(`
+      *,
+      story_items (
+        *,
+        story_item_images ( * )
+      )
+    `)
+    .order('sort_order', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching featured stories:', error)
+    return []
+  }
+
+  return (data as unknown as FeaturedStory[]) || []
+}
+
+export async function getStoryBySlug(slug: string): Promise<FeaturedStory | null> {
+  const supabase = createServerClient()
+
+  const { data, error } = await supabase
+    .from('featured_stories')
+    .select(`
+      *,
+      story_items (
+        *,
+        story_item_images ( * )
+      )
+    `)
+    .eq('slug', slug)
+    .single()
+
+  if (error) {
+    console.error('Error fetching story by slug:', error)
+    return null
+  }
+
+  return data as unknown as FeaturedStory
+}
+
+export async function getRelatedVideos(): Promise<RelatedVideo[]> {
+  const supabase = createServerClient()
+
+  const { data, error } = await supabase
+    .from('related_videos')
+    .select('*')
+
+  if (error) {
+    console.error('Error fetching related videos:', error)
+    return []
+  }
+
+  return (data as unknown as RelatedVideo[]) || []
 }

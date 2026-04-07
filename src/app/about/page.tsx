@@ -50,6 +50,14 @@ export default async function AboutPage() {
                 <span style={{ color: 'var(--color-gold)' }}>-</span>
                 <span>{stats.totalOrganizations}개 기관의 요청 기록물</span>
               </li>
+              <li className="flex items-start gap-2">
+                <span style={{ color: 'var(--color-gold)' }}>-</span>
+                <span>소장기록물 복원사례 기획전시 (featured_stories)</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span style={{ color: 'var(--color-gold)' }}>-</span>
+                <span>보존 교육 관련 영상 자료 (related_videos)</span>
+              </li>
             </ul>
           </section>
 
