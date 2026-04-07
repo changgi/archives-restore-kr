@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /c/project_restore/.claude/skills/*/skill.md)",
+      "mcp__7c830bcd-a98b-4bde-b7bd-fc737a9a281f__list_organizations",
+      "mcp__7c830bcd-a98b-4bde-b7bd-fc737a9a281f__get_project_url",
+      "WebFetch(domain:www.archives.go.kr)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --src-dir --turbopack --yes)",
+      "Bash(mv /c/project_restore/_workspace /c/project_restore_workspace_backup)",
+      "Bash(npx create-next-app@latest /c/project_restore --typescript --tailwind --app --src-dir --turbopack --yes)"
+    ]
+  }
+}
