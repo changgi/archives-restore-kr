@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { getAllCases } from '@/lib/queries'
 import TimelineView from '@/components/TimelineView'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: '타임라인',
   description: '연도별 기록물 복원 사업 타임라인. 시간의 흐름에 따른 복원 현황을 확인하세요.',

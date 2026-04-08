@@ -4,6 +4,9 @@ import RecordCard from '@/components/RecordCard'
 import { getAllCases, getStats, getFeaturedStories, getRelatedVideos } from '@/lib/queries'
 import Link from 'next/link'
 import HomeFeatured from './HomeFeatured'
+import { Play } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
   const [cases, stats, stories, videos] = await Promise.all([
@@ -136,7 +139,9 @@ export default async function HomePage() {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full bg-[var(--color-bg-secondary)]" />
+                      <div className="w-full h-full bg-gradient-to-br from-[var(--color-gold)]/20 to-[var(--color-bg)] flex items-center justify-center">
+                        <Play size={32} className="text-[var(--color-gold)]/50" />
+                      </div>
                     )}
                   </div>
                   <div className="p-4">

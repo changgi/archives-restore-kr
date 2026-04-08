@@ -154,25 +154,38 @@ export async function getYearStats(): Promise<{ year: number; count: number }[]>
 }
 
 export async function getStats(): Promise<Stats> {
-  const supabase = createServerClient()
+  try {
+    const supabase = createServerClient()
 
-  const [casesRes, orgsRes, yearsRes] = await Promise.all([
-    supabase.from('restoration_cases').select('id', { count: 'exact', head: true }),
-    supabase.from('organizations').select('id', { count: 'exact', head: true }),
-    supabase.from('restoration_cases').select('support_year'),
-  ])
+    const [casesRes, orgsRes, yearsRes] = await Promise.all([
+      supabase.from('restoration_cases').select('id', { count: 'exact', head: true }),
+      supabase.from('organizations').select('id', { count: 'exact', head: true }),
+      supabase.from('restoration_cases').select('support_year'),
+    ])
 
-  const years = yearsRes.data
-    ?.map((r) => r.support_year)
-    .filter((y): y is number => y !== null) || []
+    if (casesRes.error) console.error('Failed to fetch cases count:', casesRes.error)
+    if (orgsRes.error) console.error('Failed to fetch orgs count:', orgsRes.error)
+    if (yearsRes.error) console.error('Failed to fetch years:', yearsRes.error)
 
-  return {
-    totalCases: casesRes.count || 0,
-    totalOrganizations: orgsRes.count || 0,
-    yearRange: {
-      min: years.length > 0 ? Math.min(...years) : 2009,
-      max: years.length > 0 ? Math.max(...years) : 2025,
-    },
+    const years = yearsRes.data
+      ?.map((r) => r.support_year)
+      .filter((y): y is number => y !== null) || []
+
+    return {
+      totalCases: casesRes.count || 0,
+      totalOrganizations: orgsRes.count || 0,
+      yearRange: {
+        min: years.length > 0 ? Math.min(...years) : 2009,
+        max: years.length > 0 ? Math.max(...years) : 2025,
+      },
+    }
+  } catch (error) {
+    console.error('Failed to fetch stats:', error)
+    return {
+      totalCases: 0,
+      totalOrganizations: 0,
+      yearRange: { min: 2009, max: 2025 },
+    }
   }
 }
 

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { getStats } from '@/lib/queries'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: '소개',
   description: '기록유산 복원 아카이브 프로젝트 소개. 국가기록원 데이터를 활용한 디지털 아카이브입니다.',

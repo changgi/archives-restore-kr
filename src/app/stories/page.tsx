@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { getFeaturedStories } from '@/lib/queries'
 import StoryCard from '@/components/StoryCard'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: '기획전시',
   description: '국가기록원 소장 기록물의 복원 사례를 기획전시로 만나보세요.',

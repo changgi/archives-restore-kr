@@ -4,6 +4,8 @@ import GalleryGrid from '@/components/GalleryGrid'
 import GalleryTabs from '@/components/GalleryTabs'
 import type { CaseImage } from '@/types'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: '갤러리',
   description: '기록물 복원 전후 이미지 갤러리. 복원의 과정과 결과를 시각적으로 확인하세요.',
