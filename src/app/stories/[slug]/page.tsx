@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { getStoryBySlug, getFeaturedStories } from '@/lib/queries'
+import { getStoryBySlug, getFeaturedStories, getOriginalDocuments } from '@/lib/queries'
 import StoryDetailClient from './StoryDetailClient'
 
 interface Props {
@@ -27,6 +27,10 @@ export default async function StoryDetailPage({ params }: Props) {
 
   if (!story) notFound()
 
+  const [originalDocuments] = await Promise.all([
+    getOriginalDocuments(story.id),
+  ])
+
   const currentIndex = allStories.findIndex((s) => s.slug === slug)
   const prevStory = currentIndex > 0 ? allStories[currentIndex - 1] : null
   const nextStory = currentIndex < allStories.length - 1 ? allStories[currentIndex + 1] : null
@@ -36,6 +40,7 @@ export default async function StoryDetailPage({ params }: Props) {
       story={story}
       prevStory={prevStory}
       nextStory={nextStory}
+      originalDocuments={originalDocuments}
     />
   )
 }

@@ -1,5 +1,5 @@
 import { createServerClient } from './supabase'
-import type { RestorationCase, Organization, CaseFilters, Stats, FeaturedStory, RelatedVideo } from '@/types'
+import type { RestorationCase, Organization, CaseFilters, Stats, FeaturedStory, RelatedVideo, OriginalDocument, DocumentPage } from '@/types'
 
 export async function getAllCases(filters?: CaseFilters): Promise<RestorationCase[]> {
   const supabase = createServerClient()
@@ -219,6 +219,23 @@ export async function getStoryBySlug(slug: string): Promise<FeaturedStory | null
   }
 
   return data as unknown as FeaturedStory
+}
+
+export async function getOriginalDocuments(storyId: string): Promise<(OriginalDocument & { document_pages: DocumentPage[] })[]> {
+  const supabase = createServerClient()
+
+  const { data, error } = await supabase
+    .from('original_documents')
+    .select('*, document_pages(*)')
+    .eq('story_id', storyId)
+    .order('sort_order')
+
+  if (error) {
+    console.error('Error fetching original documents:', error)
+    return []
+  }
+
+  return (data as unknown as (OriginalDocument & { document_pages: DocumentPage[] })[]) || []
 }
 
 export async function getRelatedVideos(): Promise<RelatedVideo[]> {

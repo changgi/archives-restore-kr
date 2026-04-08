@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ExternalLink, MapPin, Calendar } from 'lucide-react'
+import { X, ExternalLink, MapPin, Calendar, ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react'
 import type { StoryItem } from '@/types'
 
 interface ItemGalleryProps {
@@ -11,6 +11,24 @@ interface ItemGalleryProps {
 
 export default function ItemGallery({ items }: ItemGalleryProps) {
   const [selected, setSelected] = useState<StoryItem | null>(null)
+  const [galleryIndex, setGalleryIndex] = useState(0)
+
+  const openItem = useCallback((item: StoryItem) => {
+    setSelected(item)
+    setGalleryIndex(0)
+  }, [])
+
+  const galleryImages = selected?.story_item_images
+    ?.slice()
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) || []
+
+  const galleryPrev = useCallback(() => {
+    setGalleryIndex(i => Math.max(0, i - 1))
+  }, [])
+
+  const galleryNext = useCallback(() => {
+    setGalleryIndex(i => Math.min(galleryImages.length - 1, i + 1))
+  }, [galleryImages.length])
 
   return (
     <>
@@ -24,7 +42,7 @@ export default function ItemGallery({ items }: ItemGalleryProps) {
             transition={{ duration: 0.5, delay: i * 0.1 }}
           >
             <button
-              onClick={() => setSelected(item)}
+              onClick={() => openItem(item)}
               className="w-full text-left group rounded-xl overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-gold)]/50 transition-all"
               style={{ backgroundColor: 'var(--color-bg-card)' }}
             >
@@ -92,12 +110,54 @@ export default function ItemGallery({ items }: ItemGalleryProps) {
                 <X size={24} />
               </button>
 
-              {selected.thumbnail_url && (
+              {/* Image Gallery or Thumbnail */}
+              {galleryImages.length > 0 ? (
+                <div className="relative bg-black">
+                  <div className="aspect-video flex items-center justify-center overflow-hidden">
+                    <img
+                      src={galleryImages[galleryIndex]?.image_url}
+                      alt={galleryImages[galleryIndex]?.alt_text || selected.title}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+
+                  {/* Gallery navigation */}
+                  {galleryImages.length > 1 && (
+                    <>
+                      {galleryIndex > 0 && (
+                        <button
+                          onClick={galleryPrev}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/20 transition-colors"
+                        >
+                          <ChevronLeft size={20} className="text-white" />
+                        </button>
+                      )}
+                      {galleryIndex < galleryImages.length - 1 && (
+                        <button
+                          onClick={galleryNext}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/20 transition-colors"
+                        >
+                          <ChevronRight size={20} className="text-white" />
+                        </button>
+                      )}
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 border border-white/10">
+                        <span className="text-xs text-white/80">
+                          {galleryIndex + 1} / {galleryImages.length}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : selected.thumbnail_url ? (
                 <img
                   src={selected.thumbnail_url}
                   alt={selected.title}
                   className="w-full aspect-video object-contain bg-black"
                 />
+              ) : (
+                <div className="aspect-video bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                  <ImageIcon size={48} className="text-white/10" />
+                </div>
               )}
 
               <div className="p-6">
@@ -124,32 +184,44 @@ export default function ItemGallery({ items }: ItemGalleryProps) {
                   </p>
                 )}
 
-                {/* Additional images */}
-                {selected.story_item_images && selected.story_item_images.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mb-4">
-                    {selected.story_item_images.map((img) => (
-                      <img
+                {/* Gallery thumbnails strip */}
+                {galleryImages.length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+                    {galleryImages.map((img, i) => (
+                      <button
                         key={img.id}
-                        src={img.image_url}
-                        alt={img.alt_text || selected.title}
-                        className="w-full aspect-square object-cover rounded-lg"
-                      />
+                        onClick={() => setGalleryIndex(i)}
+                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                          i === galleryIndex
+                            ? 'border-[var(--color-gold)] ring-1 ring-[var(--color-gold)]/50'
+                            : 'border-transparent hover:border-white/30'
+                        }`}
+                      >
+                        <img
+                          src={img.image_url}
+                          alt={img.alt_text || `${selected.title} ${i + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
                     ))}
                   </div>
                 )}
 
-                {selected.detail_link && (
-                  <a
-                    href={selected.detail_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-black transition-all hover:scale-105"
-                    style={{ backgroundColor: 'var(--color-gold)' }}
-                  >
-                    <ExternalLink size={14} />
-                    원문 보기
-                  </a>
-                )}
+                {/* Action buttons */}
+                <div className="flex flex-wrap gap-3">
+                  {selected.detail_link && (
+                    <a
+                      href={selected.detail_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-black transition-all hover:scale-105"
+                      style={{ backgroundColor: 'var(--color-gold)' }}
+                    >
+                      <ExternalLink size={14} />
+                      원문 보기
+                    </a>
+                  )}
+                </div>
               </div>
             </motion.div>
           </motion.div>

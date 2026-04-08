@@ -60,7 +60,7 @@ export default function TimelineView({ casesByYear }: TimelineViewProps) {
               <div className="absolute -bottom-[5px] left-4 w-2 h-2 rounded-full bg-[var(--color-gold)]" />
             </div>
             <div className="space-y-3">
-              {cases.slice(0, 4).map((c) => (
+              {cases.map((c) => (
                 <Link
                   key={c.id}
                   href={`/cases/${c.id}`}
@@ -75,11 +75,6 @@ export default function TimelineView({ casesByYear }: TimelineViewProps) {
                   </p>
                 </Link>
               ))}
-              {cases.length > 4 && (
-                <p className="text-xs text-[var(--color-text-muted)] text-center">
-                  +{cases.length - 4}건 더
-                </p>
-              )}
             </div>
           </motion.div>
         ))}
@@ -102,7 +97,7 @@ export default function TimelineView({ casesByYear }: TimelineViewProps) {
               <span className="ml-2 text-sm text-[var(--color-text-muted)]">{cases.length}건</span>
             </div>
             <div className="space-y-2">
-              {cases.slice(0, 3).map((c) => (
+              {cases.map((c) => (
                 <Link
                   key={c.id}
                   href={`/cases/${c.id}`}

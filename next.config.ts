@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
         hostname: 'archives.go.kr',
         pathname: '/next/images/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'theme.archives.go.kr',
+        pathname: '/viewer/**',
+      },
     ],
   },
 };

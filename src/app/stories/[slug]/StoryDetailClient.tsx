@@ -2,8 +2,8 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink } from 'lucide-react'
-import type { FeaturedStory } from '@/types'
+import { ArrowLeft, ExternalLink, BookOpen, FileText } from 'lucide-react'
+import type { FeaturedStory, OriginalDocument, DocumentPage } from '@/types'
 import ScrollProgress from '@/components/ScrollProgress'
 import ImageCompareSlider from '@/components/ImageCompareSlider'
 import ItemGallery from '@/components/ItemGallery'
@@ -15,6 +15,7 @@ interface StoryDetailClientProps {
   story: FeaturedStory
   prevStory: FeaturedStory | null
   nextStory: FeaturedStory | null
+  originalDocuments?: (OriginalDocument & { document_pages: DocumentPage[] })[]
 }
 
 const fadeInUp = {
@@ -38,7 +39,9 @@ const fadeIn = {
   transition: { duration: 0.8 },
 }
 
-export default function StoryDetailClient({ story, prevStory, nextStory }: StoryDetailClientProps) {
+export default function StoryDetailClient({ story, prevStory, nextStory, originalDocuments }: StoryDetailClientProps) {
+  const hasOriginalDocs = originalDocuments && originalDocuments.length > 0
+
   const sections = [
     { id: 'hero', label: '전시 입구' },
     ...(story.before_image_url && story.after_image_url
@@ -46,7 +49,7 @@ export default function StoryDetailClient({ story, prevStory, nextStory }: Story
       : []),
     { id: 'intro', label: '소개' },
     ...(story.story_items?.length > 0 ? [{ id: 'gallery', label: '소장품' }] : []),
-    ...(story.external_link ? [{ id: 'links', label: '원문' }] : []),
+    ...(story.external_link || hasOriginalDocs ? [{ id: 'links', label: '원문 열람' }] : []),
     ...(story.video_url ? [{ id: 'video', label: '영상' }] : []),
     { id: 'nav', label: '다음 전시' },
   ]
@@ -199,8 +202,8 @@ export default function StoryDetailClient({ story, prevStory, nextStory }: Story
         </section>
       )}
 
-      {/* Section 5: External Link */}
-      {story.external_link && (
+      {/* Section 5: External Link & Original Documents */}
+      {(story.external_link || hasOriginalDocs) && (
         <section
           id="links"
           className="py-20 md:py-32"
@@ -214,16 +217,64 @@ export default function StoryDetailClient({ story, prevStory, nextStory }: Story
               <p className="text-sm mb-8" style={{ color: 'var(--color-text-secondary)' }}>
                 원본 자료를 직접 확인해 보세요
               </p>
-              <a
-                href={story.external_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-medium text-black transition-all hover:scale-105"
-                style={{ backgroundColor: 'var(--color-gold)' }}
-              >
-                <ExternalLink size={18} />
-                {story.external_link_label || '원문 보기'}
-              </a>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                {hasOriginalDocs && (
+                  <Link
+                    href={`/stories/${story.slug}/documents`}
+                    className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-medium text-black transition-all hover:scale-105"
+                    style={{ backgroundColor: 'var(--color-gold)' }}
+                  >
+                    <BookOpen size={18} />
+                    원문 직접 보기
+                  </Link>
+                )}
+
+                {story.external_link && (
+                  <a
+                    href={story.external_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-2 px-8 py-3 rounded-lg font-medium transition-all hover:scale-105 ${
+                      hasOriginalDocs
+                        ? 'border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[var(--color-gold)]/10'
+                        : 'text-black'
+                    }`}
+                    style={hasOriginalDocs ? {} : { backgroundColor: 'var(--color-gold)' }}
+                  >
+                    <ExternalLink size={18} />
+                    {story.external_link_label || '원본 사이트에서 보기'}
+                  </a>
+                )}
+              </div>
+
+              {/* Document preview cards */}
+              {hasOriginalDocs && (
+                <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-left">
+                  {originalDocuments.slice(0, 3).map((doc, i) => (
+                    <Link
+                      key={doc.id}
+                      href={`/stories/${story.slug}/documents`}
+                      className="group rounded-xl border border-[var(--color-border)] hover:border-[var(--color-gold)]/50 p-4 transition-all"
+                      style={{ backgroundColor: 'var(--color-bg-card)' }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded bg-[var(--color-gold)]/10 flex items-center justify-center">
+                          <FileText size={16} style={{ color: 'var(--color-gold)' }} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium line-clamp-2 group-hover:text-[var(--color-gold)] transition-colors">
+                            {doc.title}
+                          </p>
+                          <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                            {doc.document_pages?.length || 0}페이지
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </motion.div>
           </div>
         </section>

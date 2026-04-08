@@ -87,6 +87,22 @@ export interface StoryItemImage {
   created_at: string | null
 }
 
+export interface OriginalDocument {
+  id: string
+  story_id: string
+  title: string
+  description: string | null
+  sort_order: number
+}
+
+export interface DocumentPage {
+  id: string
+  document_id: string
+  page_number: number
+  image_url: string
+  alt_text: string | null
+}
+
 export interface RelatedVideo {
   id: string
   title: string
