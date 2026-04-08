@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { motion, useSpring, useInView } from 'framer-motion'
+import { useSpring, useInView } from 'framer-motion'
 
 interface StatItemProps {
   label: string
@@ -12,7 +12,7 @@ interface StatItemProps {
 
 function StatItem({ label, value, suffix = '', prefix = '' }: StatItemProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const isInView = useInView(ref, { once: true, amount: 0.1 })
+  const isInView = useInView(ref, { once: true })
   const [displayed, setDisplayed] = useState(0)
   const spring = useSpring(0, { stiffness: 50, damping: 20 })
 
@@ -49,13 +49,7 @@ interface StatsCounterProps {
 
 export default function StatsCounter({ totalCases, totalOrgs, yearRange }: StatsCounterProps) {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.1 }}
-      transition={{ duration: 0.5 }}
-      className="py-16 md:py-24"
-    >
+    <section className="py-16 md:py-24 animate-fade-in">
       <div className="max-w-5xl mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
           <StatItem label="복원 사례" value={totalCases} suffix="건" />
@@ -67,6 +61,6 @@ export default function StatsCounter({ totalCases, totalOrgs, yearRange }: Stats
           />
         </div>
       </div>
-    </motion.section>
+    </section>
   )
 }

@@ -1,7 +1,4 @@
-'use client'
-
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import type { RestorationCase } from '@/types'
 
 interface RecordCardProps {
@@ -15,11 +12,9 @@ export default function RecordCard({ record, index = 0 }: RecordCardProps) {
   const displayImage = afterImage || beforeImage
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.1 }}
-      transition={{ duration: 0.4, delay: Math.min(index * 0.1, 0.3) }}
+    <div
+      className="animate-fade-in"
+      style={{ animationDelay: `${Math.min(index * 80, 300)}ms`, animationFillMode: 'both' }}
     >
       <Link
         href={`/cases/${record.id}`}
@@ -71,6 +66,6 @@ export default function RecordCard({ record, index = 0 }: RecordCardProps) {
           </div>
         </div>
       </Link>
-    </motion.div>
+    </div>
   )
 }
