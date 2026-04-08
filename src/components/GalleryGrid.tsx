@@ -54,7 +54,7 @@ export default function GalleryGrid({ images }: GalleryGridProps) {
             key={img.id}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-50px' }}
+            viewport={{ once: true, amount: 0.1 }}
             transition={{ delay: (idx % 4) * 0.05 }}
             className="break-inside-avoid cursor-pointer group"
             onClick={() => openLightbox(idx)}

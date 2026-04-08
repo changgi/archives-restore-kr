@@ -12,7 +12,7 @@ interface StatItemProps {
 
 function StatItem({ label, value, suffix = '', prefix = '' }: StatItemProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const isInView = useInView(ref, { once: true, margin: '-100px' })
+  const isInView = useInView(ref, { once: true, amount: 0.1 })
   const [displayed, setDisplayed] = useState(0)
   const spring = useSpring(0, { stiffness: 50, damping: 20 })
 
@@ -50,10 +50,10 @@ interface StatsCounterProps {
 export default function StatsCounter({ totalCases, totalOrgs, yearRange }: StatsCounterProps) {
   return (
     <motion.section
-      initial={{ opacity: 0, y: 40 }}
+      initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-100px' }}
-      transition={{ duration: 0.6 }}
+      viewport={{ once: true, amount: 0.1 }}
+      transition={{ duration: 0.5 }}
       className="py-16 md:py-24"
     >
       <div className="max-w-5xl mx-auto px-4">
