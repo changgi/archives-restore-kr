@@ -12,7 +12,16 @@
       "Bash(npx vercel:*)",
       "WebFetch(domain:theme.archives.go.kr)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Bash(ffmpeg -version)",
+      "Bash(ffmpeg -ss 2 -i \"https://www.archives.go.kr/next/pages/wmv/20230626_5.mp4\" -vframes 1 -q:v 2 -vf \"scale=640:-1\" video_01.jpg -y)",
+      "Bash(ffmpeg -ss 2 -i \"https://www.archives.go.kr/next/pages/wmv/20230626_3.mp4\" -vframes 1 -q:v 2 -vf \"scale=640:-1\" video_02.jpg -y)",
+      "Bash(ffmpeg -ss 2 -i \"https://www.archives.go.kr/next/pages/wmv/20230626_2.mp4\" -vframes 1 -q:v 2 -vf \"scale=640:-1\" video_03.jpg -y)",
+      "Bash(ffmpeg -ss 2 -i \"https://www.archives.go.kr/next/pages/wmv/20230626_1.mp4\" -vframes 1 -q:v 2 -vf \"scale=640:-1\" video_04.jpg -y)",
+      "Bash(ffmpeg -ss 2 -i \"https://www.archives.go.kr/next/pages/wmv/20230626_8.mp4\" -vframes 1 -q:v 2 -vf \"scale=640:-1\" video_05.jpg -y)",
+      "Bash(ffmpeg -ss 2 -i \"https://www.archives.go.kr/next/pages/wmv/20230626_4.mp4\" -vframes 1 -q:v 2 -vf \"scale=640:-1\" video_06.jpg -y)",
+      "Bash(ffmpeg -ss 2 -i \"https://www.archives.go.kr/next/pages/wmv/20230626_7.mp4\" -vframes 1 -q:v 2 -vf \"scale=640:-1\" video_07.jpg -y)",
+      "Bash(ffmpeg -ss 2 -i \"https://www.archives.go.kr/next/pages/wmv/20230626_6.mp4\" -vframes 1 -q:v 2 -vf \"scale=640:-1\" video_08.jpg -y)"
     ]
   }
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { Play, Droplets, Flame, Package, Scissors, BookOpen, Film, Layers, Shield } from 'lucide-react'
 import type { RelatedVideo } from '@/types'
 import VideoPlayer from '@/components/VideoPlayer'
@@ -48,12 +47,10 @@ export default function LearnClient({ videos }: LearnClientProps) {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {videos.map((video, i) => (
-            <motion.div
+            <div
               key={video.id}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.08 }}
+              className="animate-fade-in"
+              style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
             >
               <button
                 onClick={() => setActiveVideo(video)}
@@ -108,7 +105,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
                   </h3>
                 </div>
               </button>
-            </motion.div>
+            </div>
           ))}
         </div>
 
