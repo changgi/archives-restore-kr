@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, memo, useCallback } from 'react'
-import { Play, X, Check, Clock, List, FileText, AlignLeft } from 'lucide-react'
+import { Play, X, Check, Clock, List, FileText, AlignLeft, Loader2 } from 'lucide-react'
 import type { RelatedVideo, VideoFrame, VideoTranscript } from '@/types'
 import VideoPlayer, { type VideoPlayerHandle } from '@/components/VideoPlayer'
 
@@ -212,51 +212,96 @@ const RelatedTab = memo(function RelatedTab({
   onSelect,
 }: {
   videos: RelatedVideo[]
+  currentVideoId: string | null
   onSelect: (v: RelatedVideo) => void
 }) {
+  const [pendingId, setPendingId] = useState<string | null>(null)
+
+  const handleClick = (v: RelatedVideo) => {
+    setPendingId(v.id)
+    // Give the user a moment of visual feedback before swapping the video
+    setTimeout(() => {
+      onSelect(v)
+      // Clear after a bit so the highlight doesn't linger if user reopens tab
+      setTimeout(() => setPendingId(null), 800)
+    }, 220)
+  }
+
+  // Render the pending video on top of the list (since the parent will
+  // filter it out the moment onSelect fires) so the user keeps seeing
+  // the highlighted item until the new player takes over.
+  const pendingVideo = pendingId
+    ? videos.find((v) => v.id === pendingId)
+    : null
+  const displayVideos = pendingVideo
+    ? [pendingVideo, ...videos.filter((v) => v.id !== pendingId)]
+    : videos
+
   return (
     <div className="p-3 space-y-2">
-      {videos.map((v) => (
-        <button
-          key={v.id}
-          onClick={() => onSelect(v)}
-          className="w-full flex gap-3 p-2 rounded-lg text-left transition-colors hover:bg-white/5"
-        >
-          <div className="flex-shrink-0 relative w-28 aspect-video rounded overflow-hidden">
-            {v.thumbnail_url ? (
-              <img
-                src={v.thumbnail_url}
-                alt={v.title}
-                loading="lazy"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
-                <Play size={16} className="text-white/40" />
-              </div>
-            )}
-            {v.duration_seconds && (
-              <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/80 text-[9px] text-white font-medium">
-                {formatDuration(v.duration_seconds)}
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h4
-              className="text-xs font-semibold line-clamp-2 mb-1"
-              style={{ color: 'var(--color-text)' }}
-            >
-              {v.title}
-            </h4>
-            <p
-              className="text-[11px] line-clamp-2 leading-relaxed"
-              style={{ color: 'var(--color-text-muted)' }}
-            >
-              {v.summary}
-            </p>
-          </div>
-        </button>
-      ))}
+      {displayVideos.map((v) => {
+        const isPending = pendingId === v.id
+        return (
+          <button
+            key={v.id}
+            onClick={() => handleClick(v)}
+            className="w-full flex gap-3 p-2 rounded-lg text-left transition-colors hover:bg-white/5"
+            style={{
+              backgroundColor: isPending
+                ? 'rgba(212, 168, 83, 0.12)'
+                : 'transparent',
+              border: isPending
+                ? '1px solid rgba(212, 168, 83, 0.4)'
+                : '1px solid transparent',
+            }}
+          >
+            <div className="flex-shrink-0 relative w-28 aspect-video rounded overflow-hidden">
+              {v.thumbnail_url ? (
+                <img
+                  src={v.thumbnail_url}
+                  alt={v.title}
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
+                  <Play size={16} className="text-white/40" />
+                </div>
+              )}
+              {isPending && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none">
+                  <Loader2
+                    size={20}
+                    className="animate-spin"
+                    style={{ color: 'var(--color-gold)' }}
+                  />
+                </div>
+              )}
+              {v.duration_seconds && (
+                <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/80 text-[9px] text-white font-medium">
+                  {formatDuration(v.duration_seconds)}
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4
+                className="text-xs font-semibold line-clamp-2 mb-1"
+                style={{
+                  color: isPending ? 'var(--color-gold)' : 'var(--color-text)',
+                }}
+              >
+                {v.title}
+              </h4>
+              <p
+                className="text-[11px] line-clamp-2 leading-relaxed"
+                style={{ color: 'var(--color-text-muted)' }}
+              >
+                {isPending ? '재생 준비 중...' : v.summary}
+              </p>
+            </div>
+          </button>
+        )
+      })}
     </div>
   )
 })
@@ -267,6 +312,7 @@ interface SidebarProps {
   relatedVideos: RelatedVideo[]
   activeChapterIdx: number
   activeTranscriptIdx: number
+  currentVideoId: string
   onSeek: (seconds: number) => void
   onSelectRelated: (v: RelatedVideo) => void
 }
@@ -276,6 +322,7 @@ const Sidebar = memo(function Sidebar({
   relatedVideos,
   activeChapterIdx,
   activeTranscriptIdx,
+  currentVideoId,
   onSeek,
   onSelectRelated,
 }: SidebarProps) {
@@ -376,7 +423,11 @@ const Sidebar = memo(function Sidebar({
           />
         )}
         {tab === 'related' && (
-          <RelatedTab videos={relatedVideos} onSelect={onSelectRelated} />
+          <RelatedTab
+            videos={relatedVideos}
+            currentVideoId={currentVideoId}
+            onSelect={onSelectRelated}
+          />
         )}
       </div>
     </aside>
@@ -682,6 +733,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
                     relatedVideos={relatedVideos}
                     activeChapterIdx={activeChapterIdx}
                     activeTranscriptIdx={activeTranscriptIdx}
+                    currentVideoId={activeVideo.id}
                     onSeek={handleSeek}
                     onSelectRelated={handleSelectRelated}
                   />
