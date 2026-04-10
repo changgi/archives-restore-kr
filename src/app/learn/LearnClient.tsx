@@ -429,6 +429,14 @@ export default function LearnClient({ videos }: LearnClientProps) {
     []
   )
 
+  // Keep activeVideo in a ref so callbacks don't need to be recreated
+  // every time the video changes — this prevents VideoPlayer from getting
+  // a new onTimeChange identity and avoids unrelated rerenders.
+  const activeVideoRef = useRef<RelatedVideo | null>(null)
+  useEffect(() => {
+    activeVideoRef.current = activeVideo
+  }, [activeVideo])
+
   const handleSeek = useCallback(
     (seconds: number) => {
       // Mark this as a user action so time-update throttling doesn't fight it
@@ -436,13 +444,15 @@ export default function LearnClient({ videos }: LearnClientProps) {
       playerRef.current?.seekTo(seconds)
 
       // Immediately set the active indices for snappy feedback
-      if (activeVideo) {
-        const { chapterIdx, transcriptIdx } = computeActiveIndices(seconds, activeVideo)
+      const video = activeVideoRef.current
+      if (video) {
+        const { chapterIdx, transcriptIdx } = computeActiveIndices(seconds, video)
+        // React 18 auto-batches these in event handlers
         setActiveChapterIdx(chapterIdx)
         setActiveTranscriptIdx(transcriptIdx)
       }
     },
-    [activeVideo, computeActiveIndices]
+    [computeActiveIndices]
   )
 
   const handleTimeChange = useCallback(
@@ -451,11 +461,11 @@ export default function LearnClient({ videos }: LearnClientProps) {
       // isn't overwritten by stale time-updates from before the seek lands
       const now = performance.now()
       if (now - userActionAtRef.current < 800) return
-      // Throttle: update at most every 500ms
-      if (now - lastUpdateRef.current < 500) return
+      // Throttle: update at most every 250ms
+      if (now - lastUpdateRef.current < 250) return
       lastUpdateRef.current = now
 
-      const video = activeVideo
+      const video = activeVideoRef.current
       if (!video) return
 
       const { chapterIdx, transcriptIdx } = computeActiveIndices(currentTime, video)
@@ -464,7 +474,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
         prev !== transcriptIdx ? transcriptIdx : prev
       )
     },
-    [activeVideo, computeActiveIndices]
+    [computeActiveIndices]
   )
 
   const handleSelectRelated = useCallback((v: RelatedVideo) => {
@@ -510,7 +520,10 @@ export default function LearnClient({ videos }: LearnClientProps) {
               style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
             >
               <button
-                onClick={() => setActiveVideo(video)}
+                onClick={() => {
+                  setActiveVideo(video)
+                  setShowPlayer(true)
+                }}
                 className="w-full text-left group rounded-xl overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-gold)]/50 transition-all h-full flex flex-col"
                 style={{ backgroundColor: 'var(--color-bg-card)' }}
               >
@@ -602,9 +615,11 @@ export default function LearnClient({ videos }: LearnClientProps) {
                     <div className="bg-black">
                       <VideoPlayer
                         ref={playerRef}
+                        key={activeVideo.id}
                         src={activeVideo.video_url}
                         title={activeVideo.title}
                         poster={activeVideo.thumbnail_url || undefined}
+                        autoPlay
                         onTimeChange={handleTimeChange}
                       />
                     </div>

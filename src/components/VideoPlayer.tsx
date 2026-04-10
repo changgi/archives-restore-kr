@@ -9,6 +9,7 @@ interface VideoPlayerProps {
   poster?: string
   title?: string
   modal?: boolean
+  autoPlay?: boolean
   onClose?: () => void
   onTimeChange?: (currentTime: number) => void
 }
@@ -20,25 +21,55 @@ export interface VideoPlayerHandle {
 }
 
 const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function VideoPlayer(
-  { src, poster, title, modal = false, onClose, onTimeChange },
+  { src, poster, title, modal = false, autoPlay = false, onClose, onTimeChange },
   ref
 ) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
+  // Pending seek time used when seekTo() is called before metadata loads
+  const pendingSeekRef = useRef<number | null>(null)
+
+  // Tries to play and gracefully handles autoplay rejection by retrying muted
+  const safePlay = (video: HTMLVideoElement) => {
+    const p = video.play()
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => {
+        // Autoplay blocked — retry muted (most browsers allow muted autoplay)
+        try {
+          video.muted = true
+          video.play().catch(() => {
+            /* still blocked, user must click play */
+          })
+        } catch {
+          /* ignore */
+        }
+      })
+    }
+    setPlaying(true)
+  }
 
   useImperativeHandle(ref, () => ({
     seekTo: (seconds: number) => {
-      if (videoRef.current) {
-        videoRef.current.currentTime = seconds
-        videoRef.current.play()
-        setPlaying(true)
+      const video = videoRef.current
+      if (!video) return
+      // If metadata isn't loaded yet, defer the seek
+      if (!video.duration || isNaN(video.duration)) {
+        pendingSeekRef.current = seconds
+        safePlay(video)
+        return
       }
+      try {
+        video.currentTime = seconds
+      } catch {
+        pendingSeekRef.current = seconds
+      }
+      safePlay(video)
     },
     play: () => {
-      videoRef.current?.play()
-      setPlaying(true)
+      const v = videoRef.current
+      if (v) safePlay(v)
     },
     pause: () => {
       videoRef.current?.pause()
@@ -65,8 +96,23 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   }, [onTimeChange])
 
   const handleLoadedMetadata = useCallback(() => {
-    if (videoRef.current) setDuration(videoRef.current.duration)
-  }, [])
+    const v = videoRef.current
+    if (!v) return
+    setDuration(v.duration)
+    // Apply any seek that was requested before metadata was ready
+    if (pendingSeekRef.current !== null) {
+      try {
+        v.currentTime = pendingSeekRef.current
+      } catch {
+        /* ignore */
+      }
+      pendingSeekRef.current = null
+    }
+    if (autoPlay && v.paused) {
+      safePlay(v)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay])
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!videoRef.current) return
@@ -103,8 +149,11 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
         className="w-full h-full aspect-video object-contain bg-black"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
         onClick={togglePlay}
+        autoPlay={autoPlay}
         playsInline
       />
 
