@@ -74,7 +74,7 @@ const TimelineTab = memo(function TimelineTab({
                 className="w-full h-full object-cover"
               />
               {isActive && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
                   <Play size={18} className="text-white" fill="currentColor" />
                 </div>
               )}
@@ -119,17 +119,36 @@ const TranscriptTab = memo(function TranscriptTab({
   onSeek: (seconds: number) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  // Block auto-scroll for a window after user clicks a line, so the
+  // layout doesn't shift under their cursor and steal subsequent clicks.
+  const suppressScrollUntilRef = useRef(0)
 
-  // Auto-scroll active line into view
+  // Auto-scroll active line into view (only when fully off-screen)
   useEffect(() => {
     if (activeIdx < 0 || !containerRef.current) return
-    const el = containerRef.current.querySelector<HTMLButtonElement>(
+    if (performance.now() < suppressScrollUntilRef.current) return
+
+    const container = containerRef.current
+    const el = container.querySelector<HTMLButtonElement>(
       `[data-idx="${activeIdx}"]`
     )
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+    if (!el) return
+
+    // Skip scrolling if the line is already visible in the viewport
+    const containerRect = container.getBoundingClientRect()
+    const elRect = el.getBoundingClientRect()
+    const fullyVisible =
+      elRect.top >= containerRect.top && elRect.bottom <= containerRect.bottom
+    if (fullyVisible) return
+
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [activeIdx])
+
+  const handleClick = (seconds: number) => {
+    // Block auto-scroll for 2 seconds after a click so the cursor stays put
+    suppressScrollUntilRef.current = performance.now() + 2000
+    onSeek(seconds)
+  }
 
   if (!transcripts.length) {
     return (
@@ -150,7 +169,7 @@ const TranscriptTab = memo(function TranscriptTab({
           <button
             key={t.id}
             data-idx={idx}
-            onClick={() => onSeek(t.start_seconds)}
+            onClick={() => handleClick(t.start_seconds)}
             className="w-full flex gap-3 p-2.5 rounded-lg text-left transition-colors hover:bg-white/5"
             style={{
               backgroundColor: isActive
@@ -374,6 +393,9 @@ export default function LearnClient({ videos }: LearnClientProps) {
   const [activeTranscriptIdx, setActiveTranscriptIdx] = useState(-1)
   const playerRef = useRef<VideoPlayerHandle>(null)
   const lastUpdateRef = useRef(0)
+  // Suppress auto-update for a moment after user click so the throttled
+  // time-update callback doesn't overwrite the immediate selection.
+  const userActionAtRef = useRef(0)
 
   const closeModal = () => {
     setActiveVideo(null)
@@ -383,45 +405,66 @@ export default function LearnClient({ videos }: LearnClientProps) {
     setActiveTranscriptIdx(-1)
   }
 
-  const handleSeek = useCallback((seconds: number) => {
-    playerRef.current?.seekTo(seconds)
-  }, [])
+  // Compute active chapter/transcript indices from a given time
+  const computeActiveIndices = useCallback(
+    (currentTime: number, video: RelatedVideo) => {
+      const frames = video.video_frames ?? []
+      const dur = video.duration_seconds ?? 0
+      let newChapterIdx = -1
+      if (frames.length && dur) {
+        frames.forEach((frame, idx) => {
+          const frameTime = (frame.timestamp_percent / 100) * dur
+          if (currentTime >= frameTime) newChapterIdx = idx
+        })
+      }
+      const transcripts = video.video_transcripts ?? []
+      let newTranscriptIdx = -1
+      if (transcripts.length) {
+        transcripts.forEach((t, idx) => {
+          if (currentTime >= t.start_seconds) newTranscriptIdx = idx
+        })
+      }
+      return { chapterIdx: newChapterIdx, transcriptIdx: newTranscriptIdx }
+    },
+    []
+  )
+
+  const handleSeek = useCallback(
+    (seconds: number) => {
+      // Mark this as a user action so time-update throttling doesn't fight it
+      userActionAtRef.current = performance.now()
+      playerRef.current?.seekTo(seconds)
+
+      // Immediately set the active indices for snappy feedback
+      if (activeVideo) {
+        const { chapterIdx, transcriptIdx } = computeActiveIndices(seconds, activeVideo)
+        setActiveChapterIdx(chapterIdx)
+        setActiveTranscriptIdx(transcriptIdx)
+      }
+    },
+    [activeVideo, computeActiveIndices]
+  )
 
   const handleTimeChange = useCallback(
     (currentTime: number) => {
-      // Throttle: update at most every 500ms
+      // Skip auto-update briefly after a user click so the click-set value
+      // isn't overwritten by stale time-updates from before the seek lands
       const now = performance.now()
+      if (now - userActionAtRef.current < 800) return
+      // Throttle: update at most every 500ms
       if (now - lastUpdateRef.current < 500) return
       lastUpdateRef.current = now
 
       const video = activeVideo
       if (!video) return
 
-      // Compute active chapter
-      const frames = video.video_frames ?? []
-      const dur = video.duration_seconds ?? 0
-      if (frames.length && dur) {
-        let newChapterIdx = -1
-        frames.forEach((frame, idx) => {
-          const frameTime = (frame.timestamp_percent / 100) * dur
-          if (currentTime >= frameTime) newChapterIdx = idx
-        })
-        setActiveChapterIdx((prev) => (prev !== newChapterIdx ? newChapterIdx : prev))
-      }
-
-      // Compute active transcript
-      const transcripts = video.video_transcripts ?? []
-      if (transcripts.length) {
-        let newTranscriptIdx = -1
-        transcripts.forEach((t, idx) => {
-          if (currentTime >= t.start_seconds) newTranscriptIdx = idx
-        })
-        setActiveTranscriptIdx((prev) =>
-          prev !== newTranscriptIdx ? newTranscriptIdx : prev
-        )
-      }
+      const { chapterIdx, transcriptIdx } = computeActiveIndices(currentTime, video)
+      setActiveChapterIdx((prev) => (prev !== chapterIdx ? chapterIdx : prev))
+      setActiveTranscriptIdx((prev) =>
+        prev !== transcriptIdx ? transcriptIdx : prev
+      )
     },
-    [activeVideo]
+    [activeVideo, computeActiveIndices]
   )
 
   const handleSelectRelated = useCallback((v: RelatedVideo) => {
@@ -430,6 +473,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
     setActiveChapterIdx(-1)
     setActiveTranscriptIdx(-1)
     lastUpdateRef.current = 0
+    userActionAtRef.current = 0
   }, [])
 
   const relatedVideos = videos.filter((v) => v.id !== activeVideo?.id)
