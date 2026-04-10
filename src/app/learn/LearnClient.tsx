@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { Play, X, Check, Clock } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Play, X, Check, Clock, List, FileText } from 'lucide-react'
 import type { RelatedVideo, VideoFrame } from '@/types'
-import VideoPlayer from '@/components/VideoPlayer'
+import VideoPlayer, { type VideoPlayerHandle } from '@/components/VideoPlayer'
 
 interface LearnClientProps {
   videos: RelatedVideo[]
@@ -16,16 +16,56 @@ function formatDuration(seconds: number | null): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function formatTimestamp(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
+
 export default function LearnClient({ videos }: LearnClientProps) {
   const [activeVideo, setActiveVideo] = useState<RelatedVideo | null>(null)
   const [showPlayer, setShowPlayer] = useState(false)
   const [selectedFrame, setSelectedFrame] = useState<VideoFrame | null>(null)
+  const [sideTab, setSideTab] = useState<'timeline' | 'related'>('timeline')
+  const [currentTime, setCurrentTime] = useState(0)
+  const playerRef = useRef<VideoPlayerHandle>(null)
 
   const closeModal = () => {
     setActiveVideo(null)
     setShowPlayer(false)
     setSelectedFrame(null)
+    setSideTab('timeline')
+    setCurrentTime(0)
   }
+
+  const jumpToFrame = (frame: VideoFrame) => {
+    if (!activeVideo?.duration_seconds) return
+    const seconds = (frame.timestamp_percent / 100) * activeVideo.duration_seconds
+    playerRef.current?.seekTo(seconds)
+  }
+
+  const switchToRelated = (video: RelatedVideo) => {
+    setActiveVideo(video)
+    setShowPlayer(true)
+    setCurrentTime(0)
+    // Scroll modal to top
+    const modalEl = document.querySelector('.fixed.inset-0.z-50.overflow-y-auto')
+    if (modalEl) modalEl.scrollTop = 0
+  }
+
+  // Get active chapter based on currentTime
+  const getActiveChapterIndex = (): number => {
+    if (!activeVideo?.video_frames || !activeVideo.duration_seconds) return -1
+    let activeIdx = -1
+    activeVideo.video_frames.forEach((frame, idx) => {
+      const frameTime = (frame.timestamp_percent / 100) * activeVideo.duration_seconds!
+      if (currentTime >= frameTime) activeIdx = idx
+    })
+    return activeIdx
+  }
+
+  const activeChapterIdx = getActiveChapterIndex()
+  const relatedVideos = videos.filter((v) => v.id !== activeVideo?.id)
 
   return (
     <div className="pt-24 pb-16">
@@ -60,7 +100,6 @@ export default function LearnClient({ videos }: LearnClientProps) {
                 className="w-full text-left group rounded-xl overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-gold)]/50 transition-all h-full flex flex-col"
                 style={{ backgroundColor: 'var(--color-bg-card)' }}
               >
-                {/* Thumbnail */}
                 <div className="relative aspect-video overflow-hidden">
                   {video.thumbnail_url ? (
                     <img
@@ -73,7 +112,6 @@ export default function LearnClient({ videos }: LearnClientProps) {
                       <Play size={40} className="text-[var(--color-gold)]/60" />
                     </div>
                   )}
-                  {/* Duration badge */}
                   {video.duration_seconds && (
                     <div className="absolute bottom-3 right-3 px-2 py-1 rounded bg-black/70 backdrop-blur-sm flex items-center gap-1">
                       <Clock size={12} className="text-white/80" />
@@ -82,14 +120,12 @@ export default function LearnClient({ videos }: LearnClientProps) {
                       </span>
                     </div>
                   )}
-                  {/* Play overlay */}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="w-14 h-14 rounded-full bg-black/60 border-2 border-[var(--color-gold)] flex items-center justify-center">
                       <Play size={22} className="text-[var(--color-gold)] ml-0.5" />
                     </div>
                   </div>
                 </div>
-                {/* Content */}
                 <div className="p-5 flex-1 flex flex-col">
                   <h3 className="text-base font-semibold mb-2 line-clamp-2 group-hover:text-[var(--color-gold)] transition-colors">
                     {video.title}
@@ -127,35 +163,297 @@ export default function LearnClient({ videos }: LearnClientProps) {
       {/* Detail Modal */}
       {activeVideo && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-sm"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/95 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeModal()
           }}
         >
-          <div className="min-h-full flex items-start justify-center p-4 py-12">
+          <div className="min-h-full flex items-start justify-center p-2 sm:p-4 py-8">
             <div
-              className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl"
+              className="w-full max-w-7xl rounded-2xl overflow-hidden shadow-2xl relative"
               style={{ backgroundColor: 'var(--color-bg-card)' }}
             >
               {/* Close button */}
               <button
                 onClick={closeModal}
-                className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+                className="absolute top-4 right-4 z-[60] w-10 h-10 rounded-full bg-black/70 border border-white/20 flex items-center justify-center text-white hover:bg-black/90 transition-colors"
                 aria-label="닫기"
               >
                 <X size={20} />
               </button>
 
-              {/* Hero thumbnail or player */}
-              <div className="relative aspect-video bg-black">
-                {showPlayer ? (
-                  <VideoPlayer
-                    src={activeVideo.video_url}
-                    title={activeVideo.title}
-                    poster={activeVideo.thumbnail_url || undefined}
-                  />
-                ) : (
-                  <>
+              {showPlayer ? (
+                /* PLAYER MODE: Video left + Sidebar right */
+                <div className="flex flex-col lg:flex-row">
+                  {/* Left: Video player + info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-black">
+                      <VideoPlayer
+                        ref={playerRef}
+                        src={activeVideo.video_url}
+                        title={activeVideo.title}
+                        poster={activeVideo.thumbnail_url || undefined}
+                        onTimeChange={setCurrentTime}
+                      />
+                    </div>
+                    <div className="p-5 md:p-6">
+                      <h2 className="text-xl md:text-2xl font-bold mb-2">
+                        {activeVideo.title}
+                      </h2>
+                      {activeVideo.duration_seconds && (
+                        <div
+                          className="flex items-center gap-2 text-sm mb-4"
+                          style={{ color: 'var(--color-text-muted)' }}
+                        >
+                          <Clock size={14} />
+                          <span>{formatDuration(activeVideo.duration_seconds)}</span>
+                        </div>
+                      )}
+                      {activeVideo.summary && (
+                        <p
+                          className="text-sm md:text-base leading-relaxed mb-5"
+                          style={{ color: 'var(--color-text-secondary)' }}
+                        >
+                          {activeVideo.summary}
+                        </p>
+                      )}
+                      {activeVideo.key_points && activeVideo.key_points.length > 0 && (
+                        <div>
+                          <h3
+                            className="text-xs tracking-[0.15em] uppercase mb-3 font-medium"
+                            style={{ color: 'var(--color-gold)' }}
+                          >
+                            핵심 포인트
+                          </h3>
+                          <ul className="space-y-2">
+                            {activeVideo.key_points.map((point, idx) => (
+                              <li
+                                key={idx}
+                                className="flex items-start gap-2.5 text-sm"
+                                style={{ color: 'var(--color-text-secondary)' }}
+                              >
+                                <div
+                                  className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5"
+                                  style={{
+                                    backgroundColor: 'var(--color-gold)',
+                                    color: '#000',
+                                  }}
+                                >
+                                  <Check size={12} strokeWidth={3} />
+                                </div>
+                                <span className="leading-relaxed">{point}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Sidebar with tabs */}
+                  <aside
+                    className="lg:w-96 lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l flex flex-col"
+                    style={{
+                      borderColor: 'var(--color-border)',
+                      backgroundColor: 'var(--color-bg)',
+                    }}
+                  >
+                    {/* Tabs header */}
+                    <div
+                      className="flex items-center justify-between px-4 py-3 border-b"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    >
+                      <h3 className="text-sm font-bold flex items-center gap-2">
+                        <List size={16} style={{ color: 'var(--color-gold)' }} />
+                        영상 정보
+                      </h3>
+                    </div>
+                    <div
+                      className="flex border-b"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    >
+                      <button
+                        onClick={() => setSideTab('timeline')}
+                        className="flex-1 px-4 py-3 text-xs font-medium transition-colors relative"
+                        style={{
+                          color:
+                            sideTab === 'timeline'
+                              ? 'var(--color-gold)'
+                              : 'var(--color-text-muted)',
+                        }}
+                      >
+                        <span className="flex items-center justify-center gap-1.5">
+                          <FileText size={13} />
+                          타임라인
+                        </span>
+                        {sideTab === 'timeline' && (
+                          <div
+                            className="absolute bottom-0 left-0 right-0 h-0.5"
+                            style={{ backgroundColor: 'var(--color-gold)' }}
+                          />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setSideTab('related')}
+                        className="flex-1 px-4 py-3 text-xs font-medium transition-colors relative"
+                        style={{
+                          color:
+                            sideTab === 'related'
+                              ? 'var(--color-gold)'
+                              : 'var(--color-text-muted)',
+                        }}
+                      >
+                        <span className="flex items-center justify-center gap-1.5">
+                          <Play size={13} />
+                          관련 영상
+                        </span>
+                        {sideTab === 'related' && (
+                          <div
+                            className="absolute bottom-0 left-0 right-0 h-0.5"
+                            style={{ backgroundColor: 'var(--color-gold)' }}
+                          />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Tab content */}
+                    <div className="flex-1 overflow-y-auto max-h-[60vh] lg:max-h-[calc(100vh-160px)]">
+                      {sideTab === 'timeline' && (
+                        <div className="p-3">
+                          {activeVideo.video_frames &&
+                          activeVideo.video_frames.length > 0 &&
+                          activeVideo.duration_seconds ? (
+                            <div className="space-y-2">
+                              {activeVideo.video_frames.map((frame, idx) => {
+                                const timeSec =
+                                  (frame.timestamp_percent / 100) *
+                                  activeVideo.duration_seconds!
+                                const isActive = idx === activeChapterIdx
+                                return (
+                                  <button
+                                    key={frame.id}
+                                    onClick={() => jumpToFrame(frame)}
+                                    className="w-full flex gap-3 p-2 rounded-lg text-left transition-all hover:bg-white/5"
+                                    style={{
+                                      backgroundColor: isActive
+                                        ? 'rgba(212, 168, 83, 0.1)'
+                                        : 'transparent',
+                                      border: isActive
+                                        ? '1px solid rgba(212, 168, 83, 0.3)'
+                                        : '1px solid transparent',
+                                    }}
+                                  >
+                                    {/* Thumbnail */}
+                                    <div className="flex-shrink-0 relative w-28 aspect-video rounded overflow-hidden">
+                                      <img
+                                        src={frame.frame_url}
+                                        alt={frame.caption || ''}
+                                        className="w-full h-full object-cover"
+                                      />
+                                      {isActive && (
+                                        <div
+                                          className="absolute inset-0 flex items-center justify-center"
+                                          style={{
+                                            backgroundColor: 'rgba(0,0,0,0.4)',
+                                          }}
+                                        >
+                                          <Play
+                                            size={18}
+                                            className="text-white"
+                                            fill="currentColor"
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                    {/* Text */}
+                                    <div className="flex-1 min-w-0">
+                                      <div
+                                        className="text-xs font-mono mb-1"
+                                        style={{
+                                          color: isActive
+                                            ? 'var(--color-gold)'
+                                            : 'var(--color-text-muted)',
+                                        }}
+                                      >
+                                        {formatTimestamp(timeSec)}
+                                      </div>
+                                      <div
+                                        className="text-xs leading-relaxed line-clamp-3"
+                                        style={{
+                                          color: isActive
+                                            ? 'var(--color-text)'
+                                            : 'var(--color-text-secondary)',
+                                        }}
+                                      >
+                                        {frame.caption}
+                                      </div>
+                                    </div>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <p
+                              className="text-xs text-center py-8"
+                              style={{ color: 'var(--color-text-muted)' }}
+                            >
+                              타임라인 정보가 없습니다
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {sideTab === 'related' && (
+                        <div className="p-3 space-y-2">
+                          {relatedVideos.map((v) => (
+                            <button
+                              key={v.id}
+                              onClick={() => switchToRelated(v)}
+                              className="w-full flex gap-3 p-2 rounded-lg text-left transition-all hover:bg-white/5"
+                            >
+                              <div className="flex-shrink-0 relative w-28 aspect-video rounded overflow-hidden">
+                                {v.thumbnail_url ? (
+                                  <img
+                                    src={v.thumbnail_url}
+                                    alt={v.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
+                                    <Play size={16} className="text-white/40" />
+                                  </div>
+                                )}
+                                {v.duration_seconds && (
+                                  <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/80 text-[9px] text-white font-medium">
+                                    {formatDuration(v.duration_seconds)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4
+                                  className="text-xs font-semibold line-clamp-2 mb-1"
+                                  style={{ color: 'var(--color-text)' }}
+                                >
+                                  {v.title}
+                                </h4>
+                                <p
+                                  className="text-[11px] line-clamp-2 leading-relaxed"
+                                  style={{ color: 'var(--color-text-muted)' }}
+                                >
+                                  {v.summary}
+                                </p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </aside>
+                </div>
+              ) : (
+                /* PREVIEW MODE: Hero + summary + key points + frames */
+                <>
+                  <div className="relative aspect-video bg-black">
                     {activeVideo.thumbnail_url && (
                       <img
                         src={activeVideo.thumbnail_url}
@@ -184,108 +482,106 @@ export default function LearnClient({ videos }: LearnClientProps) {
                         </div>
                       )}
                     </div>
-                  </>
-                )}
-              </div>
-
-              {/* Body */}
-              <div className="p-6 md:p-8">
-                {/* Summary */}
-                {activeVideo.summary && (
-                  <div className="mb-8">
-                    <h3
-                      className="text-sm tracking-[0.15em] uppercase mb-3 font-medium"
-                      style={{ color: 'var(--color-gold)' }}
-                    >
-                      영상 요약
-                    </h3>
-                    <p
-                      className="text-base md:text-lg leading-relaxed"
-                      style={{ color: 'var(--color-text)' }}
-                    >
-                      {activeVideo.summary}
-                    </p>
                   </div>
-                )}
 
-                {/* Key points */}
-                {activeVideo.key_points && activeVideo.key_points.length > 0 && (
-                  <div className="mb-8">
-                    <h3
-                      className="text-sm tracking-[0.15em] uppercase mb-4 font-medium"
-                      style={{ color: 'var(--color-gold)' }}
-                    >
-                      핵심 포인트
-                    </h3>
-                    <ul className="space-y-3">
-                      {activeVideo.key_points.map((point, idx) => (
-                        <li
-                          key={idx}
-                          className="flex items-start gap-3"
-                          style={{ color: 'var(--color-text-secondary)' }}
+                  <div className="p-6 md:p-8">
+                    {activeVideo.summary && (
+                      <div className="mb-8">
+                        <h3
+                          className="text-sm tracking-[0.15em] uppercase mb-3 font-medium"
+                          style={{ color: 'var(--color-gold)' }}
                         >
-                          <div
-                            className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5"
-                            style={{
-                              backgroundColor: 'var(--color-gold)',
-                              color: '#000',
-                            }}
-                          >
-                            <Check size={14} strokeWidth={3} />
-                          </div>
-                          <span className="text-sm md:text-base leading-relaxed">{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Frame gallery */}
-                {activeVideo.video_frames && activeVideo.video_frames.length > 0 && (
-                  <div>
-                    <h3
-                      className="text-sm tracking-[0.15em] uppercase mb-4 font-medium"
-                      style={{ color: 'var(--color-gold)' }}
-                    >
-                      주요 장면
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      {activeVideo.video_frames.map((frame) => (
-                        <button
-                          key={frame.id}
-                          onClick={() => setSelectedFrame(frame)}
-                          className="group text-left"
+                          영상 요약
+                        </h3>
+                        <p
+                          className="text-base md:text-lg leading-relaxed"
+                          style={{ color: 'var(--color-text)' }}
                         >
-                          <div className="relative aspect-video rounded-lg overflow-hidden border border-[var(--color-border)] group-hover:border-[var(--color-gold)] transition-colors">
-                            <img
-                              src={frame.frame_url}
-                              alt={frame.caption || ''}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                            <div
-                              className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold"
-                              style={{
-                                backgroundColor: 'var(--color-gold)',
-                                color: '#000',
-                              }}
+                          {activeVideo.summary}
+                        </p>
+                      </div>
+                    )}
+
+                    {activeVideo.key_points && activeVideo.key_points.length > 0 && (
+                      <div className="mb-8">
+                        <h3
+                          className="text-sm tracking-[0.15em] uppercase mb-4 font-medium"
+                          style={{ color: 'var(--color-gold)' }}
+                        >
+                          핵심 포인트
+                        </h3>
+                        <ul className="space-y-3">
+                          {activeVideo.key_points.map((point, idx) => (
+                            <li
+                              key={idx}
+                              className="flex items-start gap-3"
+                              style={{ color: 'var(--color-text-secondary)' }}
                             >
-                              {frame.timestamp_percent}%
-                            </div>
-                          </div>
-                          {frame.caption && (
-                            <p
-                              className="mt-2 text-xs line-clamp-2 leading-relaxed"
-                              style={{ color: 'var(--color-text-muted)' }}
+                              <div
+                                className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5"
+                                style={{
+                                  backgroundColor: 'var(--color-gold)',
+                                  color: '#000',
+                                }}
+                              >
+                                <Check size={14} strokeWidth={3} />
+                              </div>
+                              <span className="text-sm md:text-base leading-relaxed">
+                                {point}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {activeVideo.video_frames && activeVideo.video_frames.length > 0 && (
+                      <div>
+                        <h3
+                          className="text-sm tracking-[0.15em] uppercase mb-4 font-medium"
+                          style={{ color: 'var(--color-gold)' }}
+                        >
+                          주요 장면
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                          {activeVideo.video_frames.map((frame) => (
+                            <button
+                              key={frame.id}
+                              onClick={() => setSelectedFrame(frame)}
+                              className="group text-left"
                             >
-                              {frame.caption}
-                            </p>
-                          )}
-                        </button>
-                      ))}
-                    </div>
+                              <div className="relative aspect-video rounded-lg overflow-hidden border border-[var(--color-border)] group-hover:border-[var(--color-gold)] transition-colors">
+                                <img
+                                  src={frame.frame_url}
+                                  alt={frame.caption || ''}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                <div
+                                  className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                                  style={{
+                                    backgroundColor: 'var(--color-gold)',
+                                    color: '#000',
+                                  }}
+                                >
+                                  {frame.timestamp_percent}%
+                                </div>
+                              </div>
+                              {frame.caption && (
+                                <p
+                                  className="mt-2 text-xs line-clamp-2 leading-relaxed"
+                                  style={{ color: 'var(--color-text-muted)' }}
+                                >
+                                  {frame.caption}
+                                </p>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -294,7 +590,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
       {/* Frame detail lightbox */}
       {selectedFrame && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/95"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/95"
           onClick={() => setSelectedFrame(null)}
         >
           <button

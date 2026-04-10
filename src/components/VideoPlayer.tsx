@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause, X } from 'lucide-react'
 
@@ -10,13 +10,41 @@ interface VideoPlayerProps {
   title?: string
   modal?: boolean
   onClose?: () => void
+  onTimeChange?: (currentTime: number) => void
 }
 
-export default function VideoPlayer({ src, poster, title, modal = false, onClose }: VideoPlayerProps) {
+export interface VideoPlayerHandle {
+  seekTo: (seconds: number) => void
+  play: () => void
+  pause: () => void
+}
+
+const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function VideoPlayer(
+  { src, poster, title, modal = false, onClose, onTimeChange },
+  ref
+) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
+
+  useImperativeHandle(ref, () => ({
+    seekTo: (seconds: number) => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = seconds
+        videoRef.current.play()
+        setPlaying(true)
+      }
+    },
+    play: () => {
+      videoRef.current?.play()
+      setPlaying(true)
+    },
+    pause: () => {
+      videoRef.current?.pause()
+      setPlaying(false)
+    },
+  }))
 
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return
@@ -33,7 +61,8 @@ export default function VideoPlayer({ src, poster, title, modal = false, onClose
     if (!videoRef.current) return
     const pct = (videoRef.current.currentTime / videoRef.current.duration) * 100
     setProgress(pct)
-  }, [])
+    onTimeChange?.(videoRef.current.currentTime)
+  }, [onTimeChange])
 
   const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) setDuration(videoRef.current.duration)
@@ -60,7 +89,7 @@ export default function VideoPlayer({ src, poster, title, modal = false, onClose
   }
 
   const player = (
-    <div className={`relative rounded-xl overflow-hidden bg-black ${modal ? 'w-full max-w-4xl' : 'w-full'}`}>
+    <div className={`relative rounded-xl overflow-hidden bg-black ${modal ? 'w-full max-w-4xl' : 'w-full h-full'}`}>
       {title && modal && (
         <div className="absolute top-0 left-0 right-0 z-20 p-4 bg-gradient-to-b from-black/80 to-transparent">
           <h3 className="text-white font-medium text-sm">{title}</h3>
@@ -71,7 +100,7 @@ export default function VideoPlayer({ src, poster, title, modal = false, onClose
         ref={videoRef}
         src={src}
         poster={poster || undefined}
-        className="w-full aspect-video object-contain bg-black"
+        className="w-full h-full aspect-video object-contain bg-black"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => setPlaying(false)}
@@ -81,7 +110,6 @@ export default function VideoPlayer({ src, poster, title, modal = false, onClose
 
       {/* Custom controls */}
       <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/80 to-transparent p-3">
-        {/* Progress bar */}
         <div
           className="w-full h-1 bg-white/20 rounded-full cursor-pointer mb-2 group"
           onClick={handleProgressClick}
@@ -106,7 +134,6 @@ export default function VideoPlayer({ src, poster, title, modal = false, onClose
         </div>
       </div>
 
-      {/* Big play button overlay when paused */}
       {!playing && (
         <button
           onClick={togglePlay}
@@ -158,4 +185,6 @@ export default function VideoPlayer({ src, poster, title, modal = false, onClose
   }
 
   return player
-}
+})
+
+export default VideoPlayer
