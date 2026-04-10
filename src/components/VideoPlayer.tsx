@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, X } from 'lucide-react'
+import { Play, Pause, X, Loader2 } from 'lucide-react'
 
 interface VideoPlayerProps {
   src: string
@@ -28,8 +28,15 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [buffering, setBuffering] = useState(false)
+  const [bufferingLong, setBufferingLong] = useState(false)
+  const [bufferedPercent, setBufferedPercent] = useState(0)
   // Pending seek time used when seekTo() is called before metadata loads
   const pendingSeekRef = useRef<number | null>(null)
+  // We always want to play after a user-triggered seek finishes
+  const playAfterSeekRef = useRef(false)
+  // Timer to show "longer than usual" message
+  const longBufferTimerRef = useRef<number | null>(null)
 
   // Tries to play and gracefully handles autoplay rejection by retrying muted
   const safePlay = (video: HTMLVideoElement) => {
@@ -54,11 +61,27 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     seekTo: (seconds: number) => {
       const video = videoRef.current
       if (!video) return
+      // Mark that we want to play once the seek lands
+      playAfterSeekRef.current = true
       // If metadata isn't loaded yet, defer the seek
       if (!video.duration || isNaN(video.duration)) {
         pendingSeekRef.current = seconds
         safePlay(video)
         return
+      }
+      // Show buffering immediately if jumping ahead of buffered range
+      try {
+        const buffered = video.buffered
+        let isBuffered = false
+        for (let i = 0; i < buffered.length; i++) {
+          if (seconds >= buffered.start(i) && seconds <= buffered.end(i)) {
+            isBuffered = true
+            break
+          }
+        }
+        if (!isBuffered) setBuffering(true)
+      } catch {
+        /* ignore */
       }
       try {
         video.currentTime = seconds
@@ -94,6 +117,68 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     setProgress(pct)
     onTimeChange?.(videoRef.current.currentTime)
   }, [onTimeChange])
+
+  const updateBuffered = useCallback(() => {
+    const v = videoRef.current
+    if (!v || !v.duration) return
+    try {
+      const buf = v.buffered
+      if (buf.length > 0) {
+        const end = buf.end(buf.length - 1)
+        setBufferedPercent((end / v.duration) * 100)
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  // Helpers to manage the "long buffer" timer
+  const startBuffering = useCallback(() => {
+    setBuffering(true)
+    if (longBufferTimerRef.current) clearTimeout(longBufferTimerRef.current)
+    longBufferTimerRef.current = window.setTimeout(() => {
+      setBufferingLong(true)
+    }, 4000)
+  }, [])
+
+  const stopBuffering = useCallback(() => {
+    setBuffering(false)
+    setBufferingLong(false)
+    if (longBufferTimerRef.current) {
+      clearTimeout(longBufferTimerRef.current)
+      longBufferTimerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (longBufferTimerRef.current) clearTimeout(longBufferTimerRef.current)
+    }
+  }, [])
+
+  // Buffering events
+  const handleWaiting = useCallback(() => startBuffering(), [startBuffering])
+  const handlePlaying = useCallback(() => stopBuffering(), [stopBuffering])
+  const handleCanPlay = useCallback(() => {
+    stopBuffering()
+    // If a user-triggered seek was pending playback, ensure we play
+    if (playAfterSeekRef.current && videoRef.current) {
+      playAfterSeekRef.current = false
+      safePlay(videoRef.current)
+    }
+  }, [stopBuffering])
+  const handleSeeking = useCallback(() => startBuffering(), [startBuffering])
+  const handleSeeked = useCallback(() => {
+    // If video is ready, hide buffering; otherwise wait for canplay
+    const v = videoRef.current
+    if (v && v.readyState >= 3) {
+      stopBuffering()
+      if (playAfterSeekRef.current) {
+        playAfterSeekRef.current = false
+        safePlay(v)
+      }
+    }
+  }, [stopBuffering])
 
   const handleLoadedMetadata = useCallback(() => {
     const v = videoRef.current
@@ -153,18 +238,53 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
         onClick={togglePlay}
+        onWaiting={handleWaiting}
+        onPlaying={handlePlaying}
+        onCanPlay={handleCanPlay}
+        onSeeking={handleSeeking}
+        onSeeked={handleSeeked}
+        onProgress={updateBuffered}
+        onLoadedData={updateBuffered}
         autoPlay={autoPlay}
+        preload="auto"
         playsInline
       />
+
+      {/* Buffering spinner overlay */}
+      {buffering && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 pointer-events-none">
+          <div className="flex flex-col items-center gap-3 max-w-xs px-6 text-center">
+            <Loader2
+              size={48}
+              className="animate-spin"
+              style={{ color: 'var(--color-gold)' }}
+            />
+            <span className="text-sm text-white font-medium">불러오는 중...</span>
+            {bufferingLong && (
+              <span className="text-xs text-white/70 leading-relaxed">
+                해당 구간을 다운로드하고 있습니다.
+                <br />
+                네트워크에 따라 잠시 시간이 걸릴 수 있어요.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Custom controls */}
       <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/80 to-transparent p-3">
         <div
-          className="w-full h-1 bg-white/20 rounded-full cursor-pointer mb-2 group"
+          className="relative w-full h-1 bg-white/20 rounded-full cursor-pointer mb-2 group"
           onClick={handleProgressClick}
         >
+          {/* Buffered range */}
           <div
-            className="h-full rounded-full transition-all"
+            className="absolute top-0 left-0 h-full bg-white/30 rounded-full"
+            style={{ width: `${bufferedPercent}%` }}
+          />
+          {/* Playback progress */}
+          <div
+            className="absolute top-0 left-0 h-full rounded-full transition-all"
             style={{ width: `${progress}%`, backgroundColor: 'var(--color-gold)' }}
           />
         </div>
