@@ -113,6 +113,15 @@ export interface RelatedVideo {
   duration_seconds: number | null
   created_at: string | null
   video_frames?: VideoFrame[]
+  video_transcripts?: VideoTranscript[]
+}
+
+export interface VideoTranscript {
+  id: string
+  video_id: string
+  start_seconds: number
+  text: string
+  sort_order: number | null
 }
 
 export interface VideoFrame {

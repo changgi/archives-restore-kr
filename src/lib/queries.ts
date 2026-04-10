@@ -258,7 +258,8 @@ export async function getRelatedVideos(): Promise<RelatedVideo[]> {
     .from('related_videos')
     .select(`
       *,
-      video_frames ( * )
+      video_frames ( * ),
+      video_transcripts ( * )
     `)
     .order('title')
 
@@ -267,11 +268,16 @@ export async function getRelatedVideos(): Promise<RelatedVideo[]> {
     return []
   }
 
-  // Sort frames within each video
+  // Sort frames and transcripts within each video
   const videos = (data as unknown as RelatedVideo[]) || []
   videos.forEach((v) => {
     if (v.video_frames) {
       v.video_frames.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    }
+    if (v.video_transcripts) {
+      v.video_transcripts.sort(
+        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+      )
     }
   })
 

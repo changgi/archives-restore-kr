@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Play, X, Check, Clock, List, FileText } from 'lucide-react'
-import type { RelatedVideo, VideoFrame } from '@/types'
+import { useState, useRef, useEffect, memo, useCallback } from 'react'
+import { Play, X, Check, Clock, List, FileText, AlignLeft } from 'lucide-react'
+import type { RelatedVideo, VideoFrame, VideoTranscript } from '@/types'
 import VideoPlayer, { type VideoPlayerHandle } from '@/components/VideoPlayer'
 
 interface LearnClientProps {
@@ -22,49 +22,416 @@ function formatTimestamp(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
+type SideTab = 'timeline' | 'transcript' | 'related'
+
+// ─── Timeline Tab ───────────────────────────────────────────────
+const TimelineTab = memo(function TimelineTab({
+  frames,
+  duration,
+  activeIdx,
+  onSeek,
+}: {
+  frames: VideoFrame[]
+  duration: number
+  activeIdx: number
+  onSeek: (seconds: number) => void
+}) {
+  if (!frames.length || !duration) {
+    return (
+      <p
+        className="text-xs text-center py-8"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        타임라인 정보가 없습니다
+      </p>
+    )
+  }
+
+  return (
+    <div className="p-3 space-y-2">
+      {frames.map((frame, idx) => {
+        const timeSec = (frame.timestamp_percent / 100) * duration
+        const isActive = idx === activeIdx
+        return (
+          <button
+            key={frame.id}
+            onClick={() => onSeek(timeSec)}
+            className="w-full flex gap-3 p-2 rounded-lg text-left transition-colors hover:bg-white/5"
+            style={{
+              backgroundColor: isActive
+                ? 'rgba(212, 168, 83, 0.1)'
+                : 'transparent',
+              border: isActive
+                ? '1px solid rgba(212, 168, 83, 0.3)'
+                : '1px solid transparent',
+            }}
+          >
+            <div className="flex-shrink-0 relative w-28 aspect-video rounded overflow-hidden">
+              <img
+                src={frame.frame_url}
+                alt={frame.caption || ''}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+              {isActive && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <Play size={18} className="text-white" fill="currentColor" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div
+                className="text-xs font-mono mb-1"
+                style={{
+                  color: isActive
+                    ? 'var(--color-gold)'
+                    : 'var(--color-text-muted)',
+                }}
+              >
+                {formatTimestamp(timeSec)}
+              </div>
+              <div
+                className="text-xs leading-relaxed line-clamp-3"
+                style={{
+                  color: isActive
+                    ? 'var(--color-text)'
+                    : 'var(--color-text-secondary)',
+                }}
+              >
+                {frame.caption}
+              </div>
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+})
+
+// ─── Transcript Tab ─────────────────────────────────────────────
+const TranscriptTab = memo(function TranscriptTab({
+  transcripts,
+  activeIdx,
+  onSeek,
+}: {
+  transcripts: VideoTranscript[]
+  activeIdx: number
+  onSeek: (seconds: number) => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll active line into view
+  useEffect(() => {
+    if (activeIdx < 0 || !containerRef.current) return
+    const el = containerRef.current.querySelector<HTMLButtonElement>(
+      `[data-idx="${activeIdx}"]`
+    )
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [activeIdx])
+
+  if (!transcripts.length) {
+    return (
+      <p
+        className="text-xs text-center py-8"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        스크립트가 없습니다
+      </p>
+    )
+  }
+
+  return (
+    <div ref={containerRef} className="p-3 space-y-1">
+      {transcripts.map((t, idx) => {
+        const isActive = idx === activeIdx
+        return (
+          <button
+            key={t.id}
+            data-idx={idx}
+            onClick={() => onSeek(t.start_seconds)}
+            className="w-full flex gap-3 p-2.5 rounded-lg text-left transition-colors hover:bg-white/5"
+            style={{
+              backgroundColor: isActive
+                ? 'rgba(212, 168, 83, 0.12)'
+                : 'transparent',
+            }}
+          >
+            <div
+              className="flex-shrink-0 text-[11px] font-mono pt-0.5"
+              style={{
+                color: isActive
+                  ? 'var(--color-gold)'
+                  : 'var(--color-text-muted)',
+                minWidth: '36px',
+              }}
+            >
+              {formatTimestamp(t.start_seconds)}
+            </div>
+            <div
+              className="text-xs leading-relaxed flex-1"
+              style={{
+                color: isActive
+                  ? 'var(--color-text)'
+                  : 'var(--color-text-secondary)',
+                fontWeight: isActive ? 500 : 400,
+              }}
+            >
+              {t.text}
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+})
+
+// ─── Related Tab ────────────────────────────────────────────────
+const RelatedTab = memo(function RelatedTab({
+  videos,
+  onSelect,
+}: {
+  videos: RelatedVideo[]
+  onSelect: (v: RelatedVideo) => void
+}) {
+  return (
+    <div className="p-3 space-y-2">
+      {videos.map((v) => (
+        <button
+          key={v.id}
+          onClick={() => onSelect(v)}
+          className="w-full flex gap-3 p-2 rounded-lg text-left transition-colors hover:bg-white/5"
+        >
+          <div className="flex-shrink-0 relative w-28 aspect-video rounded overflow-hidden">
+            {v.thumbnail_url ? (
+              <img
+                src={v.thumbnail_url}
+                alt={v.title}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
+                <Play size={16} className="text-white/40" />
+              </div>
+            )}
+            {v.duration_seconds && (
+              <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/80 text-[9px] text-white font-medium">
+                {formatDuration(v.duration_seconds)}
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4
+              className="text-xs font-semibold line-clamp-2 mb-1"
+              style={{ color: 'var(--color-text)' }}
+            >
+              {v.title}
+            </h4>
+            <p
+              className="text-[11px] line-clamp-2 leading-relaxed"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              {v.summary}
+            </p>
+          </div>
+        </button>
+      ))}
+    </div>
+  )
+})
+
+// ─── Sidebar (memoized) ─────────────────────────────────────────
+interface SidebarProps {
+  video: RelatedVideo
+  relatedVideos: RelatedVideo[]
+  activeChapterIdx: number
+  activeTranscriptIdx: number
+  onSeek: (seconds: number) => void
+  onSelectRelated: (v: RelatedVideo) => void
+}
+
+const Sidebar = memo(function Sidebar({
+  video,
+  relatedVideos,
+  activeChapterIdx,
+  activeTranscriptIdx,
+  onSeek,
+  onSelectRelated,
+}: SidebarProps) {
+  const [tab, setTab] = useState<SideTab>('timeline')
+
+  const frames = video.video_frames ?? []
+  const transcripts = video.video_transcripts ?? []
+  const duration = video.duration_seconds ?? 0
+
+  return (
+    <aside
+      className="lg:w-96 lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l flex flex-col"
+      style={{
+        borderColor: 'var(--color-border)',
+        backgroundColor: 'var(--color-bg)',
+      }}
+    >
+      <div
+        className="flex items-center justify-between px-4 py-3 border-b"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <h3 className="text-sm font-bold flex items-center gap-2">
+          <List size={16} style={{ color: 'var(--color-gold)' }} />
+          영상 정보
+        </h3>
+      </div>
+      <div className="flex border-b" style={{ borderColor: 'var(--color-border)' }}>
+        <button
+          onClick={() => setTab('timeline')}
+          className="flex-1 px-3 py-3 text-xs font-medium transition-colors relative"
+          style={{
+            color: tab === 'timeline' ? 'var(--color-gold)' : 'var(--color-text-muted)',
+          }}
+        >
+          <span className="flex items-center justify-center gap-1.5">
+            <FileText size={13} />
+            타임라인
+          </span>
+          {tab === 'timeline' && (
+            <div
+              className="absolute bottom-0 left-0 right-0 h-0.5"
+              style={{ backgroundColor: 'var(--color-gold)' }}
+            />
+          )}
+        </button>
+        <button
+          onClick={() => setTab('transcript')}
+          className="flex-1 px-3 py-3 text-xs font-medium transition-colors relative"
+          style={{
+            color: tab === 'transcript' ? 'var(--color-gold)' : 'var(--color-text-muted)',
+          }}
+        >
+          <span className="flex items-center justify-center gap-1.5">
+            <AlignLeft size={13} />
+            스크립트
+          </span>
+          {tab === 'transcript' && (
+            <div
+              className="absolute bottom-0 left-0 right-0 h-0.5"
+              style={{ backgroundColor: 'var(--color-gold)' }}
+            />
+          )}
+        </button>
+        <button
+          onClick={() => setTab('related')}
+          className="flex-1 px-3 py-3 text-xs font-medium transition-colors relative"
+          style={{
+            color: tab === 'related' ? 'var(--color-gold)' : 'var(--color-text-muted)',
+          }}
+        >
+          <span className="flex items-center justify-center gap-1.5">
+            <Play size={13} />
+            관련 영상
+          </span>
+          {tab === 'related' && (
+            <div
+              className="absolute bottom-0 left-0 right-0 h-0.5"
+              style={{ backgroundColor: 'var(--color-gold)' }}
+            />
+          )}
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto max-h-[60vh] lg:max-h-[calc(100vh-220px)]">
+        {tab === 'timeline' && (
+          <TimelineTab
+            frames={frames}
+            duration={duration}
+            activeIdx={activeChapterIdx}
+            onSeek={onSeek}
+          />
+        )}
+        {tab === 'transcript' && (
+          <TranscriptTab
+            transcripts={transcripts}
+            activeIdx={activeTranscriptIdx}
+            onSeek={onSeek}
+          />
+        )}
+        {tab === 'related' && (
+          <RelatedTab videos={relatedVideos} onSelect={onSelectRelated} />
+        )}
+      </div>
+    </aside>
+  )
+})
+
+// ─── Main Component ─────────────────────────────────────────────
 export default function LearnClient({ videos }: LearnClientProps) {
   const [activeVideo, setActiveVideo] = useState<RelatedVideo | null>(null)
   const [showPlayer, setShowPlayer] = useState(false)
   const [selectedFrame, setSelectedFrame] = useState<VideoFrame | null>(null)
-  const [sideTab, setSideTab] = useState<'timeline' | 'related'>('timeline')
-  const [currentTime, setCurrentTime] = useState(0)
+  // Throttled active indices — updated ~2x per second instead of 60x
+  const [activeChapterIdx, setActiveChapterIdx] = useState(-1)
+  const [activeTranscriptIdx, setActiveTranscriptIdx] = useState(-1)
   const playerRef = useRef<VideoPlayerHandle>(null)
+  const lastUpdateRef = useRef(0)
 
   const closeModal = () => {
     setActiveVideo(null)
     setShowPlayer(false)
     setSelectedFrame(null)
-    setSideTab('timeline')
-    setCurrentTime(0)
+    setActiveChapterIdx(-1)
+    setActiveTranscriptIdx(-1)
   }
 
-  const jumpToFrame = (frame: VideoFrame) => {
-    if (!activeVideo?.duration_seconds) return
-    const seconds = (frame.timestamp_percent / 100) * activeVideo.duration_seconds
+  const handleSeek = useCallback((seconds: number) => {
     playerRef.current?.seekTo(seconds)
-  }
+  }, [])
 
-  const switchToRelated = (video: RelatedVideo) => {
-    setActiveVideo(video)
+  const handleTimeChange = useCallback(
+    (currentTime: number) => {
+      // Throttle: update at most every 500ms
+      const now = performance.now()
+      if (now - lastUpdateRef.current < 500) return
+      lastUpdateRef.current = now
+
+      const video = activeVideo
+      if (!video) return
+
+      // Compute active chapter
+      const frames = video.video_frames ?? []
+      const dur = video.duration_seconds ?? 0
+      if (frames.length && dur) {
+        let newChapterIdx = -1
+        frames.forEach((frame, idx) => {
+          const frameTime = (frame.timestamp_percent / 100) * dur
+          if (currentTime >= frameTime) newChapterIdx = idx
+        })
+        setActiveChapterIdx((prev) => (prev !== newChapterIdx ? newChapterIdx : prev))
+      }
+
+      // Compute active transcript
+      const transcripts = video.video_transcripts ?? []
+      if (transcripts.length) {
+        let newTranscriptIdx = -1
+        transcripts.forEach((t, idx) => {
+          if (currentTime >= t.start_seconds) newTranscriptIdx = idx
+        })
+        setActiveTranscriptIdx((prev) =>
+          prev !== newTranscriptIdx ? newTranscriptIdx : prev
+        )
+      }
+    },
+    [activeVideo]
+  )
+
+  const handleSelectRelated = useCallback((v: RelatedVideo) => {
+    setActiveVideo(v)
     setShowPlayer(true)
-    setCurrentTime(0)
-    // Scroll modal to top
-    const modalEl = document.querySelector('.fixed.inset-0.z-50.overflow-y-auto')
-    if (modalEl) modalEl.scrollTop = 0
-  }
+    setActiveChapterIdx(-1)
+    setActiveTranscriptIdx(-1)
+    lastUpdateRef.current = 0
+  }, [])
 
-  // Get active chapter based on currentTime
-  const getActiveChapterIndex = (): number => {
-    if (!activeVideo?.video_frames || !activeVideo.duration_seconds) return -1
-    let activeIdx = -1
-    activeVideo.video_frames.forEach((frame, idx) => {
-      const frameTime = (frame.timestamp_percent / 100) * activeVideo.duration_seconds!
-      if (currentTime >= frameTime) activeIdx = idx
-    })
-    return activeIdx
-  }
-
-  const activeChapterIdx = getActiveChapterIndex()
   const relatedVideos = videos.filter((v) => v.id !== activeVideo?.id)
 
   return (
@@ -80,7 +447,10 @@ export default function LearnClient({ videos }: LearnClientProps) {
         <h1 className="text-3xl md:text-5xl font-bold mb-4">
           <span style={{ color: 'var(--color-gold)' }}>보존</span>교육
         </h1>
-        <p className="text-base md:text-lg max-w-2xl" style={{ color: 'var(--color-text-secondary)' }}>
+        <p
+          className="text-base md:text-lg max-w-2xl"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
           기록물 보존과 복원의 과정을 영상으로 확인하세요.
           각 영상의 핵심 내용과 주요 장면을 AI가 분석하여 요약했습니다.
         </p>
@@ -173,7 +543,6 @@ export default function LearnClient({ videos }: LearnClientProps) {
               className="w-full max-w-7xl rounded-2xl overflow-hidden shadow-2xl relative"
               style={{ backgroundColor: 'var(--color-bg-card)' }}
             >
-              {/* Close button */}
               <button
                 onClick={closeModal}
                 className="absolute top-4 right-4 z-[60] w-10 h-10 rounded-full bg-black/70 border border-white/20 flex items-center justify-center text-white hover:bg-black/90 transition-colors"
@@ -183,7 +552,6 @@ export default function LearnClient({ videos }: LearnClientProps) {
               </button>
 
               {showPlayer ? (
-                /* PLAYER MODE: Video left + Sidebar right */
                 <div className="flex flex-col lg:flex-row">
                   {/* Left: Video player + info */}
                   <div className="flex-1 min-w-0">
@@ -193,7 +561,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
                         src={activeVideo.video_url}
                         title={activeVideo.title}
                         poster={activeVideo.thumbnail_url || undefined}
-                        onTimeChange={setCurrentTime}
+                        onTimeChange={handleTimeChange}
                       />
                     </div>
                     <div className="p-5 md:p-6">
@@ -250,208 +618,16 @@ export default function LearnClient({ videos }: LearnClientProps) {
                     </div>
                   </div>
 
-                  {/* Right: Sidebar with tabs */}
-                  <aside
-                    className="lg:w-96 lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l flex flex-col"
-                    style={{
-                      borderColor: 'var(--color-border)',
-                      backgroundColor: 'var(--color-bg)',
-                    }}
-                  >
-                    {/* Tabs header */}
-                    <div
-                      className="flex items-center justify-between px-4 py-3 border-b"
-                      style={{ borderColor: 'var(--color-border)' }}
-                    >
-                      <h3 className="text-sm font-bold flex items-center gap-2">
-                        <List size={16} style={{ color: 'var(--color-gold)' }} />
-                        영상 정보
-                      </h3>
-                    </div>
-                    <div
-                      className="flex border-b"
-                      style={{ borderColor: 'var(--color-border)' }}
-                    >
-                      <button
-                        onClick={() => setSideTab('timeline')}
-                        className="flex-1 px-4 py-3 text-xs font-medium transition-colors relative"
-                        style={{
-                          color:
-                            sideTab === 'timeline'
-                              ? 'var(--color-gold)'
-                              : 'var(--color-text-muted)',
-                        }}
-                      >
-                        <span className="flex items-center justify-center gap-1.5">
-                          <FileText size={13} />
-                          타임라인
-                        </span>
-                        {sideTab === 'timeline' && (
-                          <div
-                            className="absolute bottom-0 left-0 right-0 h-0.5"
-                            style={{ backgroundColor: 'var(--color-gold)' }}
-                          />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setSideTab('related')}
-                        className="flex-1 px-4 py-3 text-xs font-medium transition-colors relative"
-                        style={{
-                          color:
-                            sideTab === 'related'
-                              ? 'var(--color-gold)'
-                              : 'var(--color-text-muted)',
-                        }}
-                      >
-                        <span className="flex items-center justify-center gap-1.5">
-                          <Play size={13} />
-                          관련 영상
-                        </span>
-                        {sideTab === 'related' && (
-                          <div
-                            className="absolute bottom-0 left-0 right-0 h-0.5"
-                            style={{ backgroundColor: 'var(--color-gold)' }}
-                          />
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Tab content */}
-                    <div className="flex-1 overflow-y-auto max-h-[60vh] lg:max-h-[calc(100vh-160px)]">
-                      {sideTab === 'timeline' && (
-                        <div className="p-3">
-                          {activeVideo.video_frames &&
-                          activeVideo.video_frames.length > 0 &&
-                          activeVideo.duration_seconds ? (
-                            <div className="space-y-2">
-                              {activeVideo.video_frames.map((frame, idx) => {
-                                const timeSec =
-                                  (frame.timestamp_percent / 100) *
-                                  activeVideo.duration_seconds!
-                                const isActive = idx === activeChapterIdx
-                                return (
-                                  <button
-                                    key={frame.id}
-                                    onClick={() => jumpToFrame(frame)}
-                                    className="w-full flex gap-3 p-2 rounded-lg text-left transition-all hover:bg-white/5"
-                                    style={{
-                                      backgroundColor: isActive
-                                        ? 'rgba(212, 168, 83, 0.1)'
-                                        : 'transparent',
-                                      border: isActive
-                                        ? '1px solid rgba(212, 168, 83, 0.3)'
-                                        : '1px solid transparent',
-                                    }}
-                                  >
-                                    {/* Thumbnail */}
-                                    <div className="flex-shrink-0 relative w-28 aspect-video rounded overflow-hidden">
-                                      <img
-                                        src={frame.frame_url}
-                                        alt={frame.caption || ''}
-                                        className="w-full h-full object-cover"
-                                      />
-                                      {isActive && (
-                                        <div
-                                          className="absolute inset-0 flex items-center justify-center"
-                                          style={{
-                                            backgroundColor: 'rgba(0,0,0,0.4)',
-                                          }}
-                                        >
-                                          <Play
-                                            size={18}
-                                            className="text-white"
-                                            fill="currentColor"
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-                                    {/* Text */}
-                                    <div className="flex-1 min-w-0">
-                                      <div
-                                        className="text-xs font-mono mb-1"
-                                        style={{
-                                          color: isActive
-                                            ? 'var(--color-gold)'
-                                            : 'var(--color-text-muted)',
-                                        }}
-                                      >
-                                        {formatTimestamp(timeSec)}
-                                      </div>
-                                      <div
-                                        className="text-xs leading-relaxed line-clamp-3"
-                                        style={{
-                                          color: isActive
-                                            ? 'var(--color-text)'
-                                            : 'var(--color-text-secondary)',
-                                        }}
-                                      >
-                                        {frame.caption}
-                                      </div>
-                                    </div>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          ) : (
-                            <p
-                              className="text-xs text-center py-8"
-                              style={{ color: 'var(--color-text-muted)' }}
-                            >
-                              타임라인 정보가 없습니다
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {sideTab === 'related' && (
-                        <div className="p-3 space-y-2">
-                          {relatedVideos.map((v) => (
-                            <button
-                              key={v.id}
-                              onClick={() => switchToRelated(v)}
-                              className="w-full flex gap-3 p-2 rounded-lg text-left transition-all hover:bg-white/5"
-                            >
-                              <div className="flex-shrink-0 relative w-28 aspect-video rounded overflow-hidden">
-                                {v.thumbnail_url ? (
-                                  <img
-                                    src={v.thumbnail_url}
-                                    alt={v.title}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
-                                    <Play size={16} className="text-white/40" />
-                                  </div>
-                                )}
-                                {v.duration_seconds && (
-                                  <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/80 text-[9px] text-white font-medium">
-                                    {formatDuration(v.duration_seconds)}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4
-                                  className="text-xs font-semibold line-clamp-2 mb-1"
-                                  style={{ color: 'var(--color-text)' }}
-                                >
-                                  {v.title}
-                                </h4>
-                                <p
-                                  className="text-[11px] line-clamp-2 leading-relaxed"
-                                  style={{ color: 'var(--color-text-muted)' }}
-                                >
-                                  {v.summary}
-                                </p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </aside>
+                  <Sidebar
+                    video={activeVideo}
+                    relatedVideos={relatedVideos}
+                    activeChapterIdx={activeChapterIdx}
+                    activeTranscriptIdx={activeTranscriptIdx}
+                    onSeek={handleSeek}
+                    onSelectRelated={handleSelectRelated}
+                  />
                 </div>
               ) : (
-                /* PREVIEW MODE: Hero + summary + key points + frames */
                 <>
                   <div className="relative aspect-video bg-black">
                     {activeVideo.thumbnail_url && (
