@@ -107,6 +107,7 @@ export interface RelatedVideo {
   id: string
   title: string
   video_url: string
+  hd_video_url: string | null
   thumbnail_url: string | null
   summary: string | null
   key_points: string[] | null

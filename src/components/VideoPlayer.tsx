@@ -6,6 +6,7 @@ import { Play, Pause, X, Loader2 } from 'lucide-react'
 
 interface VideoPlayerProps {
   src: string
+  hdSrc?: string | null
   poster?: string
   title?: string
   modal?: boolean
@@ -21,7 +22,7 @@ export interface VideoPlayerHandle {
 }
 
 const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function VideoPlayer(
-  { src, poster, title, modal = false, autoPlay = false, onClose, onTimeChange },
+  { src, hdSrc, poster, title, modal = false, autoPlay = false, onClose, onTimeChange },
   ref
 ) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -31,12 +32,29 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   const [buffering, setBuffering] = useState(false)
   const [bufferingLong, setBufferingLong] = useState(false)
   const [bufferedPercent, setBufferedPercent] = useState(0)
+  const [quality, setQuality] = useState<'sd' | 'hd'>('sd')
   // Pending seek time used when seekTo() is called before metadata loads
   const pendingSeekRef = useRef<number | null>(null)
   // We always want to play after a user-triggered seek finishes
   const playAfterSeekRef = useRef(false)
   // Timer to show "longer than usual" message
   const longBufferTimerRef = useRef<number | null>(null)
+  // Used when switching quality — remember position + play state
+  const qualitySwitchRef = useRef<{ time: number; wasPlaying: boolean } | null>(null)
+
+  const currentSrc = quality === 'hd' && hdSrc ? hdSrc : src
+
+  const handleQualityToggle = useCallback(() => {
+    if (!hdSrc) return
+    const v = videoRef.current
+    if (v) {
+      qualitySwitchRef.current = {
+        time: v.currentTime,
+        wasPlaying: !v.paused,
+      }
+    }
+    setQuality((q) => (q === 'sd' ? 'hd' : 'sd'))
+  }, [hdSrc])
 
   // Tries to play and gracefully handles autoplay rejection by retrying muted
   const safePlay = (video: HTMLVideoElement) => {
@@ -184,6 +202,18 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     const v = videoRef.current
     if (!v) return
     setDuration(v.duration)
+    // Restore position after a quality switch
+    if (qualitySwitchRef.current) {
+      const { time, wasPlaying } = qualitySwitchRef.current
+      try {
+        v.currentTime = time
+      } catch {
+        /* ignore */
+      }
+      if (wasPlaying) safePlay(v)
+      qualitySwitchRef.current = null
+      return
+    }
     // Apply any seek that was requested before metadata was ready
     if (pendingSeekRef.current !== null) {
       try {
@@ -229,7 +259,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
 
       <video
         ref={videoRef}
-        src={src}
+        src={currentSrc}
         poster={poster || undefined}
         className="w-full h-full aspect-video object-contain bg-black"
         onTimeUpdate={handleTimeUpdate}
@@ -300,6 +330,26 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
           <span className="text-xs text-white/70">
             {formatTime((progress / 100) * duration)} / {formatTime(duration)}
           </span>
+          {hdSrc && (
+            <button
+              onClick={handleQualityToggle}
+              className="ml-auto px-2 py-1 rounded text-[10px] font-bold tracking-wider transition-colors border"
+              style={{
+                color: quality === 'hd' ? '#000' : 'var(--color-gold)',
+                backgroundColor:
+                  quality === 'hd' ? 'var(--color-gold)' : 'rgba(0,0,0,0.4)',
+                borderColor: 'var(--color-gold)',
+              }}
+              aria-label="화질 전환"
+              title={
+                quality === 'hd'
+                  ? '480p로 전환 (빠름)'
+                  : '원본 화질로 전환 (느림, 외부 서버)'
+              }
+            >
+              {quality === 'hd' ? 'HD' : '480P'}
+            </button>
+          )}
         </div>
       </div>
 

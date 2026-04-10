@@ -555,12 +555,10 @@ export default function LearnClient({ videos }: LearnClientProps) {
     userActionAtRef.current = 0
   }, [])
 
-  // Show all videos in the related list (including currently playing)
-  // so the user can always see which one is active. The current video
-  // is moved to the top and visually marked as "재생 중".
-  const relatedVideos = activeVideo
-    ? [activeVideo, ...videos.filter((v) => v.id !== activeVideo.id)]
-    : videos
+  // Show all videos in the related list in their original order so
+  // clicking one keeps focus in the same spot. The currently playing
+  // video stays at its original position and is just visually marked.
+  const relatedVideos = videos
 
   return (
     <div className="pt-24 pb-16">
@@ -691,6 +689,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
                         ref={playerRef}
                         key={activeVideo.id}
                         src={activeVideo.video_url}
+                        hdSrc={activeVideo.hd_video_url}
                         title={activeVideo.title}
                         poster={activeVideo.thumbnail_url || undefined}
                         autoPlay
