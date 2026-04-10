@@ -209,6 +209,7 @@ const TranscriptTab = memo(function TranscriptTab({
 // ─── Related Tab ────────────────────────────────────────────────
 const RelatedTab = memo(function RelatedTab({
   videos,
+  currentVideoId,
   onSelect,
 }: {
   videos: RelatedVideo[]
@@ -217,40 +218,40 @@ const RelatedTab = memo(function RelatedTab({
 }) {
   const [pendingId, setPendingId] = useState<string | null>(null)
 
+  // Clear the pending state once the parent has actually switched
+  useEffect(() => {
+    if (pendingId && currentVideoId === pendingId) {
+      const t = setTimeout(() => setPendingId(null), 400)
+      return () => clearTimeout(t)
+    }
+  }, [currentVideoId, pendingId])
+
   const handleClick = (v: RelatedVideo) => {
+    if (v.id === currentVideoId) return // already playing
     setPendingId(v.id)
     // Give the user a moment of visual feedback before swapping the video
     setTimeout(() => {
       onSelect(v)
-      // Clear after a bit so the highlight doesn't linger if user reopens tab
-      setTimeout(() => setPendingId(null), 800)
-    }, 220)
+    }, 180)
   }
-
-  // Render the pending video on top of the list (since the parent will
-  // filter it out the moment onSelect fires) so the user keeps seeing
-  // the highlighted item until the new player takes over.
-  const pendingVideo = pendingId
-    ? videos.find((v) => v.id === pendingId)
-    : null
-  const displayVideos = pendingVideo
-    ? [pendingVideo, ...videos.filter((v) => v.id !== pendingId)]
-    : videos
 
   return (
     <div className="p-3 space-y-2">
-      {displayVideos.map((v) => {
+      {videos.map((v) => {
         const isPending = pendingId === v.id
+        const isCurrent = v.id === currentVideoId && !isPending
+        const isHighlighted = isPending || isCurrent
         return (
           <button
             key={v.id}
             onClick={() => handleClick(v)}
-            className="w-full flex gap-3 p-2 rounded-lg text-left transition-colors hover:bg-white/5"
+            disabled={isCurrent}
+            className="w-full flex gap-3 p-2 rounded-lg text-left transition-colors hover:bg-white/5 disabled:cursor-default"
             style={{
-              backgroundColor: isPending
+              backgroundColor: isHighlighted
                 ? 'rgba(212, 168, 83, 0.12)'
                 : 'transparent',
-              border: isPending
+              border: isHighlighted
                 ? '1px solid rgba(212, 168, 83, 0.4)'
                 : '1px solid transparent',
             }}
@@ -277,7 +278,18 @@ const RelatedTab = memo(function RelatedTab({
                   />
                 </div>
               )}
-              {v.duration_seconds && (
+              {isCurrent && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-none">
+                  <div
+                    className="flex items-center gap-1 px-2 py-1 rounded-full"
+                    style={{ backgroundColor: 'var(--color-gold)' }}
+                  >
+                    <Play size={10} className="text-black" fill="currentColor" />
+                    <span className="text-[9px] font-bold text-black">재생 중</span>
+                  </div>
+                </div>
+              )}
+              {v.duration_seconds && !isCurrent && (
                 <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/80 text-[9px] text-white font-medium">
                   {formatDuration(v.duration_seconds)}
                 </div>
@@ -287,7 +299,9 @@ const RelatedTab = memo(function RelatedTab({
               <h4
                 className="text-xs font-semibold line-clamp-2 mb-1"
                 style={{
-                  color: isPending ? 'var(--color-gold)' : 'var(--color-text)',
+                  color: isHighlighted
+                    ? 'var(--color-gold)'
+                    : 'var(--color-text)',
                 }}
               >
                 {v.title}
@@ -296,7 +310,11 @@ const RelatedTab = memo(function RelatedTab({
                 className="text-[11px] line-clamp-2 leading-relaxed"
                 style={{ color: 'var(--color-text-muted)' }}
               >
-                {isPending ? '재생 준비 중...' : v.summary}
+                {isPending
+                  ? '재생 준비 중...'
+                  : isCurrent
+                  ? '현재 재생 중인 영상입니다'
+                  : v.summary}
               </p>
             </div>
           </button>
@@ -537,7 +555,12 @@ export default function LearnClient({ videos }: LearnClientProps) {
     userActionAtRef.current = 0
   }, [])
 
-  const relatedVideos = videos.filter((v) => v.id !== activeVideo?.id)
+  // Show all videos in the related list (including currently playing)
+  // so the user can always see which one is active. The current video
+  // is moved to the top and visually marked as "재생 중".
+  const relatedVideos = activeVideo
+    ? [activeVideo, ...videos.filter((v) => v.id !== activeVideo.id)]
+    : videos
 
   return (
     <div className="pt-24 pb-16">
