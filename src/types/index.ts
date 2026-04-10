@@ -108,5 +108,18 @@ export interface RelatedVideo {
   title: string
   video_url: string
   thumbnail_url: string | null
+  summary: string | null
+  key_points: string[] | null
+  duration_seconds: number | null
   created_at: string | null
+  video_frames?: VideoFrame[]
+}
+
+export interface VideoFrame {
+  id: string
+  video_id: string
+  frame_url: string
+  timestamp_percent: number
+  caption: string | null
+  sort_order: number | null
 }

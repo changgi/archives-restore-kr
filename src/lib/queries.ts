@@ -256,12 +256,24 @@ export async function getRelatedVideos(): Promise<RelatedVideo[]> {
 
   const { data, error } = await supabase
     .from('related_videos')
-    .select('*')
+    .select(`
+      *,
+      video_frames ( * )
+    `)
+    .order('title')
 
   if (error) {
     console.error('Error fetching related videos:', error)
     return []
   }
 
-  return (data as unknown as RelatedVideo[]) || []
+  // Sort frames within each video
+  const videos = (data as unknown as RelatedVideo[]) || []
+  videos.forEach((v) => {
+    if (v.video_frames) {
+      v.video_frames.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    }
+  })
+
+  return videos
 }
