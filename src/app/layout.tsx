@@ -5,6 +5,7 @@ import './globals.css'
 import NavigationBar from '@/components/NavigationBar'
 import ScrollToTop from '@/components/ScrollToTop'
 import JsonLd from '@/components/JsonLd'
+import KeyboardShortcuts from '@/components/KeyboardShortcuts'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://projectrestore.vercel.app'),
@@ -87,6 +88,13 @@ export default function RootLayout({
 
   return (
     <html lang="ko" className="h-full antialiased" suppressHydrationWarning>
+      <head>
+        {/* Preconnect to origins we always hit to cut DNS/TLS cost on LCP */}
+        <link rel="preconnect" href="https://www.archives.go.kr" />
+        <link rel="dns-prefetch" href="https://www.archives.go.kr" />
+        <link rel="preconnect" href="https://qdhkeiblhqprsghvyoqe.supabase.co" />
+        <link rel="dns-prefetch" href="https://qdhkeiblhqprsghvyoqe.supabase.co" />
+      </head>
       <body
         className="min-h-full flex flex-col"
         style={{
@@ -110,6 +118,7 @@ export default function RootLayout({
           {children}
         </main>
         <ScrollToTop />
+        <KeyboardShortcuts />
 
         <footer
           className="relative mt-auto border-t overflow-hidden"

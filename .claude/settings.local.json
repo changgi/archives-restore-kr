@@ -67,7 +67,9 @@
       "Bash(python fine_ocr.py 6 8)",
       "Bash(npx tsc:*)",
       "Bash(git push:*)",
-      "Bash(ls src/app/sitemap.* src/app/robots.*)"
+      "Bash(ls src/app/sitemap.* src/app/robots.*)",
+      "Read(//tmp/**)",
+      "Bash(dir C:\\\\Users\\\\Windows11*~1\\\\AppData\\\\Local\\\\Temp\\\\og.png)"
     ]
   }
 }
