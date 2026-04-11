@@ -19,8 +19,6 @@
  * The Google Translate public endpoint used here is the same one
  * Chrome's built-in translate feature uses. It has no API key and
  * a very generous quota, but is undocumented and could change.
- * Fallback: MyMemory (https://api.mymemory.translated.net) — free,
- * 1000 req/day anonymous.
  */
 
 import { useEffect, useRef } from 'react'
@@ -28,17 +26,27 @@ import { useLocale } from './LanguageProvider'
 
 const CACHE_VERSION = 'v1'
 const CACHE_KEY_PREFIX = 'ar.tx.' + CACHE_VERSION + '.'
-const BATCH_SIZE = 40               // text nodes per API call
+const BATCH_SIZE = 30               // text nodes per API call
 const MIN_LEN = 1
 const MAX_LEN = 4800                // per-request char budget
+const RESCAN_DEBOUNCE_MS = 400      // coalesce bursts of mutations into one pass
+
+// Attributes whose value should be translated when visible to users
+const TRANSLATABLE_ATTRS = [
+  'placeholder',
+  'title',
+  'alt',
+  'aria-label',
+  'aria-placeholder',
+  'aria-description',
+] as const
 
 // Collect text nodes containing Korean characters
 function hasKorean(text: string): boolean {
-  return /[\u3131-\u318E\uAC00-\uD7A3]/.test(text)
+  return /[\uAC00-\uD7A3]/.test(text)
 }
 
 function cacheKey(locale: string, text: string): string {
-  // Short hash so we don't blow up localStorage keys with raw strings
   let h = 5381
   for (let i = 0; i < text.length; i++) {
     h = (h * 33) ^ text.charCodeAt(i)
@@ -73,12 +81,9 @@ async function translateBatch(
 ): Promise<string[]> {
   if (texts.length === 0) return []
 
-  // GT public endpoint is simpler for single strings — batch by
-  // concatenating with a delimiter that survives translation.
   const SEP = '\n~¦~\n'
   const joined = texts.join(SEP)
 
-  // Map our locale codes to Google Translate codes
   const gtLang =
     targetLang === 'zh-CN' ? 'zh-CN' :
     targetLang === 'zh-HK' ? 'zh-TW' :
@@ -96,16 +101,12 @@ async function translateBatch(
     const res = await fetch(url, { method: 'GET' })
     if (!res.ok) throw new Error('GT ' + res.status)
     const data = await res.json()
-    // data[0] is an array of [translatedChunk, originalChunk, ...]
     const translated = (data[0] ?? [])
       .map((row: unknown[]) => (row?.[0] as string) ?? '')
       .join('')
-    // Split back using the sentinel
     const parts = translated.split(/\n\s*~\s*¦\s*~\s*\n/)
     if (parts.length === texts.length) return parts
-    // Occasionally GT drops/rewraps the sentinel — fall back to
-    // single-string requests
-    throw new Error('sentinel mismatch: ' + parts.length + ' vs ' + texts.length)
+    throw new Error('sentinel mismatch')
   } catch {
     // Fallback: translate each line one at a time
     const out: string[] = []
@@ -130,71 +131,142 @@ async function translateBatch(
   }
 }
 
-/**
- * Walk `root` and collect Korean text nodes, skipping editable
- * content, code-like elements, and opt-out trees marked with
- * `data-noauto="true"`.
- */
-function collectNodes(root: Node): Text[] {
-  const SKIP_TAGS = new Set([
-    'SCRIPT',
-    'STYLE',
-    'NOSCRIPT',
-    'CODE',
-    'PRE',
-    'KBD',
-    'TEXTAREA',
-    'INPUT',
-    'OPTION',  // we handle FilterBar option translation separately
-  ])
+const SKIP_TAGS = new Set([
+  'SCRIPT',
+  'STYLE',
+  'NOSCRIPT',
+  'CODE',
+  'PRE',
+  'KBD',
+  'TEXTAREA',
+  'INPUT',
+])
 
-  const nodes: Text[] = []
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      const parent = node.parentElement
-      if (!parent) return NodeFilter.FILTER_REJECT
-      if (SKIP_TAGS.has(parent.tagName)) return NodeFilter.FILTER_REJECT
-      if (parent.closest('[data-noauto="true"]'))
-        return NodeFilter.FILTER_REJECT
-      if (parent.isContentEditable) return NodeFilter.FILTER_REJECT
-      const raw = (node.textContent ?? '').trim()
-      if (raw.length < MIN_LEN) return NodeFilter.FILTER_REJECT
-      if (!hasKorean(raw)) return NodeFilter.FILTER_REJECT
-      return NodeFilter.FILTER_ACCEPT
+/**
+ * Walk the whole document, collecting every Korean text node AND
+ * every Korean attribute value, in a single linear DOM pass.
+ * Fast path — single TreeWalker + one getAttribute check per
+ * element per attr. Called only on the initial pass and the debounced
+ * rescan; never per mutation.
+ */
+function scanEverything(root: HTMLElement): {
+  texts: Text[]
+  attrs: { el: Element; attr: string; value: string }[]
+} {
+  const texts: Text[] = []
+  const attrs: { el: Element; attr: string; value: string }[] = []
+
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        // Element pass — record translatable attrs, then descend.
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as Element
+          if (SKIP_TAGS.has(el.tagName)) return NodeFilter.FILTER_REJECT
+          if (el.closest('[data-noauto="true"]'))
+            return NodeFilter.FILTER_REJECT
+          for (const attr of TRANSLATABLE_ATTRS) {
+            const v = el.getAttribute(attr)
+            if (v && hasKorean(v)) {
+              attrs.push({ el, attr, value: v })
+            }
+          }
+          return NodeFilter.FILTER_SKIP // descend into children
+        }
+        // Text pass — record Korean text nodes.
+        const parent = (node as Text).parentElement
+        if (!parent) return NodeFilter.FILTER_REJECT
+        if (SKIP_TAGS.has(parent.tagName)) return NodeFilter.FILTER_REJECT
+        if (parent.isContentEditable) return NodeFilter.FILTER_REJECT
+        const raw = (node.textContent ?? '').trim()
+        if (raw.length < MIN_LEN) return NodeFilter.FILTER_REJECT
+        if (!hasKorean(raw)) return NodeFilter.FILTER_REJECT
+        return NodeFilter.FILTER_ACCEPT
+      },
     },
-  })
+  )
   let current: Node | null
   while ((current = walker.nextNode())) {
-    nodes.push(current as Text)
+    if (current.nodeType === Node.TEXT_NODE) texts.push(current as Text)
   }
-  return nodes
+  return { texts, attrs }
 }
 
-async function translateNodes(
-  nodes: Text[],
-  targetLang: string,
-  seen: Set<Text>,
-): Promise<void> {
-  // Filter out already-seen nodes (MutationObserver reentry)
-  const fresh = nodes.filter((n) => !seen.has(n))
-  if (fresh.length === 0) return
-  fresh.forEach((n) => seen.add(n))
+/**
+ * Apply a cached-or-fetched translation to every text node and
+ * attribute target sharing the same raw source text.
+ */
+function applyTranslation(
+  tx: string,
+  textBucket: Text[],
+  attrBucket: { el: Element; attr: string; value: string }[],
+): void {
+  for (const node of textBucket) {
+    const orig = node.textContent ?? ''
+    const leading = orig.length - orig.trimStart().length
+    const trailing = orig.length - orig.trimEnd().length
+    node.textContent =
+      orig.slice(0, leading) + tx + orig.slice(orig.length - trailing)
+  }
+  for (const target of attrBucket) {
+    try {
+      target.el.setAttribute(target.attr, tx)
+    } catch {
+      /* ignore */
+    }
+  }
+}
 
-  // Bucket by unique source text so duplicate strings (nav links
-  // that appear twice etc.) only incur one request each.
-  const uniq = new Map<string, Text[]>()
-  for (const node of fresh) {
+async function translateCollected(
+  nodes: Text[],
+  attrs: { el: Element; attr: string; value: string }[],
+  targetLang: string,
+  seenNodes: WeakSet<Text>,
+  seenAttrs: WeakMap<Element, Set<string>>,
+  cancelled: { v: boolean },
+): Promise<void> {
+  // Filter out already-seen targets
+  const freshNodes = nodes.filter((n) => !seenNodes.has(n))
+  const freshAttrs: { el: Element; attr: string; value: string }[] = []
+  for (const a of attrs) {
+    let done = seenAttrs.get(a.el)
+    if (done?.has(a.attr)) continue
+    if (!done) {
+      done = new Set()
+      seenAttrs.set(a.el, done)
+    }
+    done.add(a.attr)
+    freshAttrs.push(a)
+  }
+  if (freshNodes.length === 0 && freshAttrs.length === 0) return
+  freshNodes.forEach((n) => seenNodes.add(n))
+
+  // Bucket by unique source text across BOTH text nodes and attributes
+  const textBuckets = new Map<string, Text[]>()
+  const attrBuckets = new Map<string, { el: Element; attr: string; value: string }[]>()
+  for (const node of freshNodes) {
     const raw = (node.textContent ?? '').trim()
     if (!raw) continue
-    const bucket = uniq.get(raw) ?? []
-    bucket.push(node)
-    uniq.set(raw, bucket)
+    ;(textBuckets.get(raw) ?? textBuckets.set(raw, []).get(raw)!).push(node)
+  }
+  for (const target of freshAttrs) {
+    const raw = target.value.trim()
+    if (!raw) continue
+    ;(attrBuckets.get(raw) ?? attrBuckets.set(raw, []).get(raw)!).push(target)
   }
 
-  // Check cache first
+  const allKeys = new Set<string>([
+    ...textBuckets.keys(),
+    ...attrBuckets.keys(),
+  ])
+  if (allKeys.size === 0) return
+
+  // Cache-first
   const toTranslate: string[] = []
-  const cachedHits: Map<string, string> = new Map()
-  for (const src of uniq.keys()) {
+  const cachedHits = new Map<string, string>()
+  for (const src of allKeys) {
     const cached = readCache(targetLang, src)
     if (cached !== null) {
       cachedHits.set(src, cached)
@@ -203,19 +275,19 @@ async function translateNodes(
     }
   }
 
-  // Apply cached translations first (instant)
+  // Apply cached translations instantly
   for (const [src, tx] of cachedHits) {
-    for (const node of uniq.get(src) ?? []) {
-      const orig = node.textContent ?? ''
-      const trimmedLen = orig.length - orig.trimStart().length
-      const trailLen = orig.length - orig.trimEnd().length
-      node.textContent =
-        orig.slice(0, trimmedLen) + tx + orig.slice(orig.length - trailLen)
-    }
+    if (cancelled.v) return
+    applyTranslation(
+      tx,
+      textBuckets.get(src) ?? [],
+      attrBuckets.get(src) ?? [],
+    )
   }
 
   // Batch the uncached strings
   for (let i = 0; i < toTranslate.length; ) {
+    if (cancelled.v) return
     const batch: string[] = []
     let charCount = 0
     while (
@@ -228,24 +300,24 @@ async function translateNodes(
       i++
     }
     const translated = await translateBatch(batch, targetLang)
+    if (cancelled.v) return
     for (let j = 0; j < batch.length; j++) {
       const src = batch[j]
       const tx = translated[j] ?? src
       writeCache(targetLang, src, tx)
-      for (const node of uniq.get(src) ?? []) {
-        const orig = node.textContent ?? ''
-        const trimmedLen = orig.length - orig.trimStart().length
-        const trailLen = orig.length - orig.trimEnd().length
-        node.textContent =
-          orig.slice(0, trimmedLen) + tx + orig.slice(orig.length - trailLen)
-      }
+      applyTranslation(
+        tx,
+        textBuckets.get(src) ?? [],
+        attrBuckets.get(src) ?? [],
+      )
     }
   }
 }
 
 export default function AutoTranslate() {
   const { locale } = useLocale()
-  const seenRef = useRef<Set<Text>>(new Set())
+  const seenNodesRef = useRef<WeakSet<Text>>(new WeakSet())
+  const seenAttrsRef = useRef<WeakMap<Element, Set<string>>>(new WeakMap())
 
   useEffect(() => {
     // Only translate when not Korean
@@ -253,68 +325,106 @@ export default function AutoTranslate() {
       return
     }
 
-    // Reset tracking when locale changes
-    seenRef.current = new Set()
+    // Reset tracking on locale change
+    seenNodesRef.current = new WeakSet()
+    seenAttrsRef.current = new WeakMap()
 
-    let cancelled = false
+    const cancelled = { v: false }
+    let inFlight = false
+    let pending = false
+    let rescanTimer: number | null = null
 
-    const run = async () => {
-      const nodes = collectNodes(document.body)
-      if (nodes.length === 0) return
-      if (cancelled) return
-      await translateNodes(nodes, locale, seenRef.current)
+    /**
+     * Do one full-document scan + translation pass. Serialized so
+     * we never have two rescans racing. If another rescan is
+     * requested while one is in flight, we remember it and run
+     * once after the current one finishes.
+     */
+    const rescan = async () => {
+      if (cancelled.v) return
+      if (inFlight) {
+        pending = true
+        return
+      }
+      inFlight = true
+      try {
+        const { texts, attrs } = scanEverything(document.body)
+        await translateCollected(
+          texts,
+          attrs,
+          locale,
+          seenNodesRef.current,
+          seenAttrsRef.current,
+          cancelled,
+        )
+      } finally {
+        inFlight = false
+      }
+      if (pending && !cancelled.v) {
+        pending = false
+        // Chain the next pass on the next microtask
+        queueMicrotask(rescan)
+      }
     }
 
-    // Initial pass — defer slightly so React hydration finishes
-    const initialTimer = window.setTimeout(run, 150)
+    const scheduleRescan = () => {
+      if (rescanTimer !== null) window.clearTimeout(rescanTimer)
+      rescanTimer = window.setTimeout(rescan, RESCAN_DEBOUNCE_MS)
+    }
 
-    // Watch for DOM mutations (modal open, route change, carousel)
+    // Initial pass
+    const initialTimer = window.setTimeout(rescan, 150)
+
+    // The observer is intentionally "dumb" — it just schedules a
+    // rescan whenever the DOM changes. This avoids the feedback
+    // loop that happens if we try to be clever about which subtree
+    // changed, and it avoids repeatedly re-scanning the same
+    // elements because the seen-sets guard every target.
     const observer = new MutationObserver((mutations) => {
-      const newNodes: Text[] = []
+      // Only schedule a rescan if the mutation wasn't caused by our
+      // own setAttribute / textContent calls. Quick test: if every
+      // mutation has a target whose current state has NO Korean,
+      // we skip — that means we already handled it.
+      let hasUnhandled = false
       for (const mut of mutations) {
-        for (const added of mut.addedNodes) {
-          if (added.nodeType === Node.TEXT_NODE) {
-            const t = added as Text
-            const raw = (t.textContent ?? '').trim()
-            if (
-              raw &&
-              hasKorean(raw) &&
-              !seenRef.current.has(t) &&
-              t.parentElement &&
-              !t.parentElement.closest('[data-noauto="true"]')
-            ) {
-              newNodes.push(t)
-            }
-          } else if (added.nodeType === Node.ELEMENT_NODE) {
-            newNodes.push(...collectNodes(added))
-          }
+        if (mut.type === 'childList' && mut.addedNodes.length > 0) {
+          hasUnhandled = true
+          break
         }
-        if (mut.type === 'characterData' && mut.target.nodeType === Node.TEXT_NODE) {
+        if (mut.type === 'characterData') {
           const t = mut.target as Text
-          const raw = (t.textContent ?? '').trim()
-          if (raw && hasKorean(raw) && !seenRef.current.has(t)) {
-            newNodes.push(t)
+          if (hasKorean(t.textContent ?? '')) {
+            hasUnhandled = true
+            break
+          }
+        }
+        if (mut.type === 'attributes') {
+          const el = mut.target as Element
+          const attr = mut.attributeName
+          if (!attr) continue
+          const v = el.getAttribute(attr)
+          if (v && hasKorean(v)) {
+            hasUnhandled = true
+            break
           }
         }
       }
-      if (newNodes.length > 0) {
-        // Debounce a tiny bit to batch consecutive mutations
-        window.setTimeout(() => {
-          if (!cancelled) translateNodes(newNodes, locale, seenRef.current)
-        }, 80)
-      }
+      if (hasUnhandled) scheduleRescan()
     })
 
     observer.observe(document.body, {
       childList: true,
       subtree: true,
       characterData: true,
+      attributes: true,
+      attributeFilter: TRANSLATABLE_ATTRS as unknown as string[],
     })
 
     return () => {
-      cancelled = true
+      cancelled.v = true
       observer.disconnect()
       window.clearTimeout(initialTimer)
+      if (rescanTimer !== null) window.clearTimeout(rescanTimer)
     }
   }, [locale])
 
