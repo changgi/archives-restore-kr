@@ -102,17 +102,17 @@ export default async function AboutPage() {
           >
             About This Project
           </p>
-          <div className="flex items-center justify-center gap-5 mb-5">
+          <div className="flex items-center justify-center gap-3 md:gap-5 mb-5">
             <div
-              className="h-px w-16 opacity-40"
+              className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
               style={{ backgroundColor: 'var(--color-gold)' }}
             />
-            <h1 className="text-4xl md:text-6xl font-bold leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-tight">
               기록유산 <span style={{ color: 'var(--color-gold)' }}>복원</span>{' '}
               아카이브
             </h1>
             <div
-              className="h-px w-16 opacity-40"
+              className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
               style={{ backgroundColor: 'var(--color-gold)' }}
             />
           </div>

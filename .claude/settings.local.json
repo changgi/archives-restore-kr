@@ -70,7 +70,9 @@
       "Bash(ls src/app/sitemap.* src/app/robots.*)",
       "Read(//tmp/**)",
       "Bash(dir C:\\\\Users\\\\Windows11*~1\\\\AppData\\\\Local\\\\Temp\\\\og.png)",
-      "Bash(node -p \"const p=require\\('./package.json'\\); \\({ana:p.dependencies['@vercel/analytics'], speed:p.dependencies['@vercel/speed-insights']}\\)\")"
+      "Bash(node -p \"const p=require\\('./package.json'\\); \\({ana:p.dependencies['@vercel/analytics'], speed:p.dependencies['@vercel/speed-insights']}\\)\")",
+      "Bash(npx next:*)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

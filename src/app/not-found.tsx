@@ -33,19 +33,19 @@ export default function NotFound() {
         </p>
 
         {/* Big 404 with dividers */}
-        <div className="flex items-center justify-center gap-5 mb-8">
+        <div className="flex items-center justify-center gap-3 md:gap-5 mb-8">
           <div
-            className="h-px w-16 opacity-40"
+            className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
             style={{ backgroundColor: 'var(--color-gold)' }}
           />
           <h1
-            className="text-7xl md:text-9xl font-bold tabular-nums tracking-tight"
+            className="text-7xl md:text-9xl font-bold tabular-nums tracking-tight whitespace-nowrap"
             style={{ color: 'var(--color-gold)' }}
           >
             404
           </h1>
           <div
-            className="h-px w-16 opacity-40"
+            className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
             style={{ backgroundColor: 'var(--color-gold)' }}
           />
         </div>

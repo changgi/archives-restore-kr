@@ -61,16 +61,16 @@ export default async function GalleryPage() {
           >
             Visual Archive
           </p>
-          <div className="flex items-center justify-center gap-5 mb-5">
+          <div className="flex items-center justify-center gap-3 md:gap-5 mb-5">
             <div
-              className="h-px w-16 opacity-40"
+              className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
               style={{ backgroundColor: 'var(--color-gold)' }}
             />
-            <h1 className="text-4xl md:text-6xl font-bold">
+            <h1 className="text-4xl md:text-6xl font-bold whitespace-nowrap">
               <span style={{ color: 'var(--color-gold)' }}>갤러리</span>
             </h1>
             <div
-              className="h-px w-16 opacity-40"
+              className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
               style={{ backgroundColor: 'var(--color-gold)' }}
             />
           </div>

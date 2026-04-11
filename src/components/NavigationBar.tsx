@@ -23,6 +23,7 @@ export default function NavigationBar() {
   useEffect(() => {
     const saved = localStorage.getItem('theme') as 'dark' | 'light' | null
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot read from localStorage on mount
       setTheme(saved)
       document.documentElement.setAttribute('data-theme', saved)
     }
@@ -34,8 +35,10 @@ export default function NavigationBar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Close mobile menu on route change
+  // Close mobile menu on route change — this is a genuine effect
+  // responding to external state (url), not a cascading render.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- responding to pathname change
     setIsOpen(false)
   }, [pathname])
 
