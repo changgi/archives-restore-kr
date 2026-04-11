@@ -77,6 +77,29 @@ const PRIME_PHRASE: Record<Locale, string> = {
 }
 
 const CACHE_PREFIX = 'ar.tx.v1.'
+const CONSENT_KEY = 'ar.dub.consent'  // set to 'yes' once the user enables dub
+
+function hasConsent(): boolean {
+  try {
+    return localStorage.getItem(CONSENT_KEY) === 'yes'
+  } catch {
+    return false
+  }
+}
+function saveConsent(): void {
+  try {
+    localStorage.setItem(CONSENT_KEY, 'yes')
+  } catch {
+    /* quota */
+  }
+}
+function clearConsent(): void {
+  try {
+    localStorage.removeItem(CONSENT_KEY)
+  } catch {
+    /* quota */
+  }
+}
 function cacheKey(locale: string, text: string): string {
   let h = 5381
   for (let i = 0; i < text.length; i++) h = (h * 33) ^ text.charCodeAt(i)
@@ -98,6 +121,8 @@ function writeCache(locale: string, text: string, tx: string): void {
 }
 
 async function translateLine(text: string, locale: Locale): Promise<string> {
+  // Korean source → Korean target: no translation needed
+  if (locale === 'ko') return text
   const cached = readCache(locale, text)
   if (cached) return cached
   const gt = GT_LANG[locale] ?? locale
@@ -190,6 +215,9 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
   const [status, setStatus] = useState<Status>('idle')
   const [voice, setVoice] = useState<SpeechSynthesisVoice | null>(null)
   const [translatedCount, setTranslatedCount] = useState(0)
+  // Karaoke subtitle state — shows the currently-speaking translated
+  // line overlaid on the bottom of the video.
+  const [currentSubtitle, setCurrentSubtitle] = useState('')
   const lastIdxRef = useRef(-1)
   const cancelledRef = useRef(false)
   const translationsRef = useRef<Map<number, string>>(new Map())
@@ -208,6 +236,54 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
     }
   }, [])
 
+  // Auto-enable if the user has already granted consent on a
+  // previous video. We still need a gesture on the VERY FIRST
+  // video — browsers don't let us speak without one ever — but
+  // once they've clicked once, subsequent videos in the same
+  // session can start automatically because speechSynthesis
+  // retains the permission while the tab is alive.
+  //
+  // We actually attempt an auto-enable on mount and fall back to
+  // the manual button if the browser rejects it.
+  const consentCheckedRef = useRef(false)
+
+  // Detect whether the <video> element has any audio track.
+  // Silent videos (educational clips, b-roll) benefit from dubbing
+  // even in Korean because there's nothing to compete with.
+  const [videoHasAudio, setVideoHasAudio] = useState<boolean | null>(null)
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    const checkAudio = () => {
+      // Browser-agnostic heuristic: if either standard property
+      // exists and is false/empty we assume no audio.
+      type VideoWithAudioHints = HTMLVideoElement & {
+        mozHasAudio?: boolean
+        webkitAudioDecodedByteCount?: number
+        audioTracks?: { length: number }
+      }
+      const v = video as VideoWithAudioHints
+      const mozHas = v.mozHasAudio
+      const webkitBytes = v.webkitAudioDecodedByteCount
+      const trackLen = v.audioTracks?.length
+      // If any hint is truthy, audio exists
+      if (mozHas === true) return setVideoHasAudio(true)
+      if (typeof webkitBytes === 'number' && webkitBytes > 0)
+        return setVideoHasAudio(true)
+      if (typeof trackLen === 'number') return setVideoHasAudio(trackLen > 0)
+      // Fall back to true — we don't know, assume yes so we don't
+      // surprise the user with unexpected autospeak
+      return setVideoHasAudio(true)
+    }
+    if (video.readyState >= 1) checkAudio()
+    video.addEventListener('loadedmetadata', checkAudio)
+    video.addEventListener('canplay', checkAudio)
+    return () => {
+      video.removeEventListener('loadedmetadata', checkAudio)
+      video.removeEventListener('canplay', checkAudio)
+    }
+  }, [videoRef])
+
   // Reset everything on locale change or on disable
   useEffect(() => {
     cancelledRef.current = false
@@ -219,73 +295,102 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
     }
   }, [locale])
 
-  const handleEnable = useCallback(async () => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      setStatus('unsupported')
-      return
-    }
-    const synth = window.speechSynthesis
-    setStatus('priming')
-
-    // --- STEP 1: Claim the user gesture ---
-    // Speak a short priming phrase SYNCHRONOUSLY inside the click
-    // handler so Chrome/Safari register the utterance as gesture-
-    // initiated. Without this, subsequent speak() calls from
-    // timeupdate events may be silently rejected.
-    const primeText = PRIME_PHRASE[locale] ?? 'Dubbing enabled'
-    const prime = new SpeechSynthesisUtterance(primeText)
-    prime.lang = VOICE_LANG[locale]
-    prime.rate = 1.1
-    // Fire immediately inside the user-gesture turn
-    synth.cancel()
-    synth.speak(prime)
-
-    // --- STEP 2: Wait for voices ---
-    const voices = await waitForVoices()
-    const picked = pickVoice(voices, VOICE_LANG[locale])
-    setVoice(picked)
-    if (!picked) {
-      setStatus('no-voice')
-      return
-    }
-
-    // Re-speak the prime with the correct voice if we had no voice
-    // initially
-    if (prime.voice !== picked) {
-      synth.cancel()
-      const prime2 = new SpeechSynthesisUtterance(primeText)
-      prime2.lang = VOICE_LANG[locale]
-      prime2.voice = picked
-      synth.speak(prime2)
-    }
-
-    // --- STEP 3: Force-mute the underlying video ---
-    const video = videoRef.current
-    if (video) {
-      video.muted = true
-    }
-
-    // --- STEP 4: Pre-translate all segments in the background ---
-    translationsRef.current = new Map()
-    setTranslatedCount(0)
-    ;(async () => {
-      for (const seg of activeSegments) {
-        if (cancelledRef.current) return
-        const tx = await translateLine(seg.text, locale)
-        if (cancelledRef.current) return
-        translationsRef.current.set(seg.start_seconds, tx)
-        setTranslatedCount((c) => c + 1)
+  const enableDub = useCallback(
+    async (isUserGesture: boolean) => {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        setStatus('unsupported')
+        return false
       }
-    })()
+      const synth = window.speechSynthesis
+      setStatus('priming')
 
-    setEnabled(true)
-    setStatus('ready')
-  }, [locale, videoRef, activeSegments])
+      // --- STEP 1: Claim the user gesture (when applicable) ---
+      // When called from a click handler, speak a priming phrase
+      // synchronously to claim the gesture. When auto-enabling from
+      // a previous session's consent, skip the prime because there's
+      // no gesture to claim — we rely on the browser's existing
+      // permission state.
+      if (isUserGesture) {
+        const primeText = PRIME_PHRASE[locale] ?? 'Dubbing enabled'
+        const prime = new SpeechSynthesisUtterance(primeText)
+        prime.lang = VOICE_LANG[locale]
+        prime.rate = 1.1
+        synth.cancel()
+        synth.speak(prime)
+      }
+
+      // --- STEP 2: Wait for voices ---
+      const voices = await waitForVoices()
+      const picked = pickVoice(voices, VOICE_LANG[locale])
+      setVoice(picked)
+      if (!picked) {
+        setStatus('no-voice')
+        return false
+      }
+
+      // --- STEP 3: Force-mute the underlying video ---
+      const video = videoRef.current
+      if (video) {
+        video.muted = true
+      }
+
+      // --- STEP 4: Pre-translate all segments in the background ---
+      translationsRef.current = new Map()
+      setTranslatedCount(0)
+      ;(async () => {
+        for (const seg of activeSegments) {
+          if (cancelledRef.current) return
+          const tx = await translateLine(seg.text, locale)
+          if (cancelledRef.current) return
+          translationsRef.current.set(seg.start_seconds, tx)
+          setTranslatedCount((c) => c + 1)
+        }
+      })()
+
+      if (isUserGesture) saveConsent()
+      setEnabled(true)
+      setStatus('ready')
+      return true
+    },
+    [locale, videoRef, activeSegments],
+  )
+
+  const handleEnable = useCallback(() => {
+    return enableDub(true)
+  }, [enableDub])
+
+  // Auto-enable on first render if consent was granted in a
+  // previous session. Runs exactly once per (video, locale) pair.
+  // For Korean locale, only auto-enable if the video is silent
+  // (videoHasAudio === false).
+  useEffect(() => {
+    if (consentCheckedRef.current) return
+    if (
+      typeof window === 'undefined' ||
+      !('speechSynthesis' in window)
+    )
+      return
+    // For Korean, we need to know whether the video has audio first.
+    // Defer the check until videoHasAudio resolves.
+    if (locale === 'ko' && videoHasAudio === null) return
+    if (locale === 'ko' && videoHasAudio === true) {
+      // Korean UI + video with Korean audio — nothing to do
+      consentCheckedRef.current = true
+      return
+    }
+    consentCheckedRef.current = true
+    if (!hasConsent()) return
+    if (activeSegments.length === 0) return
+    enableDub(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale, videoHasAudio])
 
   const handleDisable = useCallback(() => {
     if (typeof window === 'undefined') return
     setEnabled(false)
     setStatus('idle')
+    setCurrentSubtitle('')
+    clearConsent()
     window.speechSynthesis.cancel()
     const video = videoRef.current
     if (video) {
@@ -331,8 +436,16 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       u.rate = 1.0
       u.pitch = 1.0
       u.volume = 1.0
-      u.onstart = () => setStatus('speaking')
-      u.onend = () => setStatus('ready')
+      u.onstart = () => {
+        setStatus('speaking')
+        setCurrentSubtitle(text)
+      }
+      u.onend = () => {
+        setStatus('ready')
+        // Clear the subtitle after a short grace period so it
+        // doesn't disappear the instant the voice stops
+        setTimeout(() => setCurrentSubtitle(''), 800)
+      }
       u.onerror = () => setStatus('ready')
       synth.speak(u)
     }
@@ -378,85 +491,117 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
     }
   }, [enabled, activeSegments, locale, voice, videoRef])
 
-  // Don't render anything for Korean locale
-  if (locale === 'ko') return null
+  // Hide when there's nothing to dub (no transcripts at all)
   if (total === 0) return null
+  // Hide for Korean locale if the video already has Korean audio —
+  // dubbing would just duplicate the existing narration
+  if (locale === 'ko' && videoHasAudio === true) return null
 
   const label = localeDef.nativeLabel
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-      <div className="flex items-center gap-2 pointer-events-auto">
-        {!enabled ? (
-          <button
-            onClick={handleEnable}
-            disabled={status === 'priming' || status === 'unsupported'}
-            className="group inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold backdrop-blur-md border transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_25px_-5px_rgba(212,168,83,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+    <>
+      {/* Karaoke subtitle overlay — bottom of video, shows the
+          currently-spoken translated line in sync with the dub */}
+      {enabled && currentSubtitle && (
+        <div
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 px-4 pointer-events-none max-w-[90%] animate-fade-in"
+          style={{ direction: localeDef.dir }}
+        >
+          <div
+            className="inline-block px-4 py-2 rounded-lg backdrop-blur-md text-center"
             style={{
-              backgroundColor: 'rgba(212, 168, 83, 0.95)',
-              borderColor: '#fff3',
-              color: '#000',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              border: '1px solid rgba(212, 168, 83, 0.4)',
             }}
           >
-            <Mic size={13} />
-            <span>
-              {status === 'priming'
-                ? 'Loading voice...'
-                : status === 'unsupported'
-                  ? 'Not supported'
-                  : status === 'no-voice'
-                    ? 'No ' + label + ' voice'
-                    : '🎙 Enable ' + label + ' dub'}
-            </span>
-          </button>
-        ) : (
-          <div className="inline-flex items-center gap-2">
-            <div
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold backdrop-blur-md border"
+            <p
+              className="text-sm md:text-base font-medium leading-snug"
               style={{
-                backgroundColor:
-                  status === 'speaking'
-                    ? 'rgba(212, 168, 83, 0.95)'
-                    : 'rgba(0, 0, 0, 0.7)',
-                borderColor:
-                  status === 'speaking'
-                    ? '#fff3'
-                    : 'rgba(212, 168, 83, 0.4)',
-                color: status === 'speaking' ? '#000' : 'var(--color-gold)',
-              }}
-            >
-              <Volume2
-                size={13}
-                className={status === 'speaking' ? 'animate-pulse' : ''}
-              />
-              <span>
-                {status === 'speaking' ? 'Dubbing · ' : 'Ready · '}
-                {label}
-              </span>
-              {translatedCount < total && (
-                <span
-                  className="text-[9px] opacity-70"
-                  style={{ marginLeft: 2 }}
-                >
-                  ({translatedCount}/{total})
-                </span>
-              )}
-            </div>
-            <button
-              onClick={handleDisable}
-              className="w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-md transition-colors hover:bg-white/10"
-              style={{
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                borderColor: 'rgba(255, 255, 255, 0.2)',
                 color: '#fff',
+                textShadow: '0 1px 3px rgba(0,0,0,0.9)',
               }}
-              aria-label="Disable dubbing"
             >
-              <MicOff size={14} />
-            </button>
+              {currentSubtitle}
+            </p>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Top-center toggle button / status badge */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {!enabled ? (
+            <button
+              onClick={handleEnable}
+              disabled={status === 'priming' || status === 'unsupported'}
+              className="group inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold backdrop-blur-md border transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_25px_-5px_rgba(212,168,83,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: 'rgba(212, 168, 83, 0.95)',
+                borderColor: '#fff3',
+                color: '#000',
+              }}
+            >
+              <Mic size={13} />
+              <span>
+                {status === 'priming'
+                  ? 'Loading voice...'
+                  : status === 'unsupported'
+                    ? 'Not supported'
+                    : status === 'no-voice'
+                      ? 'No ' + label + ' voice'
+                      : '🎙 ' + label + ' dub'}
+              </span>
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-2">
+              <div
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold backdrop-blur-md border"
+                style={{
+                  backgroundColor:
+                    status === 'speaking'
+                      ? 'rgba(212, 168, 83, 0.95)'
+                      : 'rgba(0, 0, 0, 0.7)',
+                  borderColor:
+                    status === 'speaking'
+                      ? '#fff3'
+                      : 'rgba(212, 168, 83, 0.4)',
+                  color: status === 'speaking' ? '#000' : 'var(--color-gold)',
+                }}
+              >
+                <Volume2
+                  size={13}
+                  className={status === 'speaking' ? 'animate-pulse' : ''}
+                />
+                <span>
+                  {status === 'speaking' ? 'Dubbing · ' : 'Ready · '}
+                  {label}
+                </span>
+                {translatedCount < total && (
+                  <span
+                    className="text-[9px] opacity-70"
+                    style={{ marginLeft: 2 }}
+                  >
+                    ({translatedCount}/{total})
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={handleDisable}
+                className="w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-md transition-colors hover:bg-white/10"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  borderColor: 'rgba(255, 255, 255, 0.2)',
+                  color: '#fff',
+                }}
+                aria-label="Disable dubbing"
+              >
+                <MicOff size={14} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
