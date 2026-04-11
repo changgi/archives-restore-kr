@@ -94,3 +94,32 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Global focus-visible ring — only shows on keyboard focus */
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus-visible,
+a:focus-visible,
+[role="slider"]:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(212, 168, 83, 0.15);
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

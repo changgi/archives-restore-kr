@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { getCaseById, getRelatedCases } from '@/lib/queries'
+import { getCaseById, getRelatedCases, getAllCases } from '@/lib/queries'
 import ImageCompareSlider from '@/components/ImageCompareSlider'
 import RecordCard from '@/components/RecordCard'
+import Breadcrumbs from '@/components/Breadcrumbs'
 import Link from 'next/link'
 import {
   ArrowLeft,
+  ArrowRight,
   Building2,
   Calendar,
   FileStack,
@@ -69,29 +71,32 @@ export default async function CaseDetailPage({ params }: PageProps) {
   const beforeImage = record.case_images?.find((img) => img.image_type === 'before')
   const afterImage = record.case_images?.find((img) => img.image_type === 'after')
 
-  const relatedCases = await getRelatedCases(
-    record.id,
-    record.requesting_org_id,
-    record.category
-  )
+  const [relatedCases, allCases] = await Promise.all([
+    getRelatedCases(record.id, record.requesting_org_id, record.category),
+    getAllCases(),
+  ])
 
   const categoryLabel = record.category === 'paper' ? '종이류' : '시청각'
 
+  // Find prev/next case in the full ordered list
+  const currentIdx = allCases.findIndex((c) => c.id === record.id)
+  const prevCase = currentIdx > 0 ? allCases[currentIdx - 1] : null
+  const nextCase =
+    currentIdx >= 0 && currentIdx < allCases.length - 1
+      ? allCases[currentIdx + 1]
+      : null
+
   return (
     <div className="pt-24 pb-24">
-      {/* Back link bar */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-        <Link
-          href="/cases"
-          className="group inline-flex items-center gap-2 text-sm transition-colors hover:text-[var(--color-gold)]"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
-          <ArrowLeft
-            size={16}
-            className="transition-transform duration-300 group-hover:-translate-x-1"
-          />
-          <span className="tracking-wide">복원 사례 목록</span>
-        </Link>
+      {/* Breadcrumbs bar */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+        <Breadcrumbs
+          items={[
+            { label: '복원 사례', href: '/cases' },
+            { label: categoryLabel, href: `/cases?category=${record.category}` },
+            { label: record.title },
+          ]}
+        />
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -385,7 +390,7 @@ export default async function CaseDetailPage({ params }: PageProps) {
 
         {/* Related cases */}
         {relatedCases.length > 0 && (
-          <section>
+          <section className="mb-16">
             <div className="flex items-center gap-4 mb-8">
               <div
                 className="h-px flex-1"
@@ -411,6 +416,124 @@ export default async function CaseDetailPage({ params }: PageProps) {
               {relatedCases.map((c, i) => (
                 <RecordCard key={c.id} record={c} index={i} />
               ))}
+            </div>
+          </section>
+        )}
+
+        {/* Prev / Next case navigation */}
+        {(prevCase || nextCase) && (
+          <section>
+            <div className="flex items-center gap-4 mb-6">
+              <div
+                className="h-px flex-1"
+                style={{
+                  backgroundColor: 'var(--color-gold)',
+                  opacity: 0.3,
+                }}
+              />
+              <p
+                className="text-[10px] tracking-[0.3em] uppercase font-medium whitespace-nowrap"
+                style={{ color: 'var(--color-gold)' }}
+              >
+                Continue Exploring
+              </p>
+              <div
+                className="h-px flex-1"
+                style={{
+                  backgroundColor: 'var(--color-gold)',
+                  opacity: 0.3,
+                }}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Prev */}
+              {prevCase ? (
+                <Link
+                  href={`/cases/${prevCase.id}`}
+                  className="group flex items-center gap-4 p-5 rounded-2xl border transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-gold)]/40"
+                  style={{
+                    backgroundColor: 'var(--color-bg-card)',
+                    borderColor: 'var(--color-border)',
+                  }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border transition-colors group-hover:bg-[var(--color-gold)]/10"
+                    style={{
+                      borderColor: 'rgba(212, 168, 83, 0.3)',
+                      color: 'var(--color-gold)',
+                    }}
+                  >
+                    <ArrowLeft
+                      size={16}
+                      className="transition-transform duration-300 group-hover:-translate-x-0.5"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-[10px] tracking-[0.25em] uppercase font-medium mb-1"
+                      style={{ color: 'var(--color-gold)' }}
+                    >
+                      Previous
+                    </p>
+                    <p className="text-sm font-bold line-clamp-2 group-hover:text-[var(--color-gold)] transition-colors">
+                      {prevCase.title}
+                    </p>
+                  </div>
+                </Link>
+              ) : (
+                <div />
+              )}
+
+              {/* Next */}
+              {nextCase ? (
+                <Link
+                  href={`/cases/${nextCase.id}`}
+                  className="group flex items-center gap-4 p-5 rounded-2xl border transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-gold)]/40 md:text-right"
+                  style={{
+                    backgroundColor: 'var(--color-bg-card)',
+                    borderColor: 'var(--color-border)',
+                  }}
+                >
+                  <div className="flex-1 min-w-0 md:order-1">
+                    <p
+                      className="text-[10px] tracking-[0.25em] uppercase font-medium mb-1"
+                      style={{ color: 'var(--color-gold)' }}
+                    >
+                      Next
+                    </p>
+                    <p className="text-sm font-bold line-clamp-2 group-hover:text-[var(--color-gold)] transition-colors">
+                      {nextCase.title}
+                    </p>
+                  </div>
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border transition-colors group-hover:bg-[var(--color-gold)]/10 md:order-2"
+                    style={{
+                      borderColor: 'rgba(212, 168, 83, 0.3)',
+                      color: 'var(--color-gold)',
+                    }}
+                  >
+                    <ArrowRight
+                      size={16}
+                      className="transition-transform duration-300 group-hover:translate-x-0.5"
+                    />
+                  </div>
+                </Link>
+              ) : (
+                <div />
+              )}
+            </div>
+
+            {/* Back to index */}
+            <div className="mt-6 text-center">
+              <Link
+                href="/cases"
+                className="inline-flex items-center gap-2 text-xs font-medium transition-colors hover:text-[var(--color-gold)]"
+                style={{ color: 'var(--color-text-muted)' }}
+              >
+                <span className="tracking-[0.2em] uppercase">
+                  복원 사례 전체 보기
+                </span>
+              </Link>
             </div>
           </section>
         )}

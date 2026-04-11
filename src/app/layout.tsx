@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Archive, ExternalLink } from 'lucide-react'
 import './globals.css'
 import NavigationBar from '@/components/NavigationBar'
+import ScrollToTop from '@/components/ScrollToTop'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://projectrestore.vercel.app'),
@@ -78,6 +79,7 @@ export default function RootLayout({
       >
         <NavigationBar />
         <main className="flex-1">{children}</main>
+        <ScrollToTop />
 
         <footer
           className="relative mt-auto border-t overflow-hidden"
