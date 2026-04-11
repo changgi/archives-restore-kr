@@ -34,8 +34,13 @@ export default function ScrollProgress({ sections }: ScrollProgressProps) {
 
   useEffect(() => {
     window.addEventListener('scroll', handleScroll, { passive: true })
-    handleScroll()
-    return () => window.removeEventListener('scroll', handleScroll)
+    // Prime initial state after mount so SSR/hydration doesn't set
+    // state during render. rAF batches with the next paint.
+    const id = requestAnimationFrame(handleScroll)
+    return () => {
+      cancelAnimationFrame(id)
+      window.removeEventListener('scroll', handleScroll)
+    }
   }, [handleScroll])
 
   const scrollTo = (id: string) => {

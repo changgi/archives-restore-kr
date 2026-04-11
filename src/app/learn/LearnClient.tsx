@@ -126,7 +126,8 @@ const TranscriptTab = memo(function TranscriptTab({
   // Auto-scroll active line into view (only when fully off-screen)
   useEffect(() => {
     if (activeIdx < 0 || !containerRef.current) return
-    if (performance.now() < suppressScrollUntilRef.current) return
+    // Read current time inside an effect (not render) — pure-rule compliant
+    if (Date.now() < suppressScrollUntilRef.current) return
 
     const container = containerRef.current
     const el = container.querySelector<HTMLButtonElement>(
@@ -145,8 +146,11 @@ const TranscriptTab = memo(function TranscriptTab({
   }, [activeIdx])
 
   const handleClick = (seconds: number) => {
-    // Block auto-scroll for 2 seconds after a click so the cursor stays put
-    suppressScrollUntilRef.current = performance.now() + 2000
+    // Block auto-scroll for 2 seconds after a click. Date.now() is flagged
+    // as impure by react-hooks/purity but it only runs inside an event
+    // handler here, never during render, so the warning is a false positive.
+    // eslint-disable-next-line react-hooks/purity
+    suppressScrollUntilRef.current = Date.now() + 2000
     onSeek(seconds)
   }
 

@@ -226,7 +226,6 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     if (autoPlay && v.paused) {
       safePlay(v)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlay])
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {

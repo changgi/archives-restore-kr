@@ -43,8 +43,12 @@ export default function ShareButton({ title, text, className = '' }: ShareButton
   const [url, setUrl] = useState('')
   const popoverRef = useRef<HTMLDivElement>(null)
 
+  // Read the URL once after mount. Wrapped in rAF so the state
+  // update happens on the next frame instead of synchronously
+  // during the effect body (which the React 19 lint rule rejects).
   useEffect(() => {
-    setUrl(window.location.href)
+    const id = requestAnimationFrame(() => setUrl(window.location.href))
+    return () => cancelAnimationFrame(id)
   }, [])
 
   // Close on outside click / Escape

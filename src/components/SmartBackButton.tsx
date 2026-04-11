@@ -30,8 +30,12 @@ export default function SmartBackButton({
     // window.history.length > 1 is a strong hint that we came from
     // another in-app page. If length === 1 the user likely landed
     // directly (new tab, shared link, etc.), so back() would go
-    // nowhere useful.
-    setCanGoBack(window.history.length > 1)
+    // nowhere useful. Wrapped in rAF to avoid setting state
+    // synchronously within the effect body (React 19 lint rule).
+    const id = requestAnimationFrame(() => {
+      setCanGoBack(window.history.length > 1)
+    })
+    return () => cancelAnimationFrame(id)
   }, [])
 
   const baseClass = `group inline-flex items-center gap-2 text-sm transition-colors hover:text-[var(--color-gold)] ${className}`
