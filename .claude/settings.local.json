@@ -64,7 +64,8 @@
       "Bash(ffmpeg -y -i C:/project_restore/public/videos/video_5.mp4 -vf fps=3 -q:v 2 v5_frames/f_%04d.jpg -loglevel error)",
       "Bash(python v5_process.py)",
       "Bash(python fine_ocr.py 3 4)",
-      "Bash(python fine_ocr.py 6 8)"
+      "Bash(python fine_ocr.py 6 8)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

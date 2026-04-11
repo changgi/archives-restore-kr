@@ -1,100 +1,149 @@
-'use client'
-
-import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ArrowRight, Sparkles } from 'lucide-react'
 
 export default function HeroSection() {
   return (
-    <section className="relative h-screen flex items-center justify-center overflow-hidden">
-      {/* Background overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-[var(--color-bg)]" />
-
-      {/* Decorative pattern */}
+    <section className="relative min-h-[88vh] flex items-center justify-center overflow-hidden">
+      {/* Gradient background */}
       <div
-        className="absolute inset-0 opacity-5"
+        className="absolute inset-0"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4A853' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          background:
+            'radial-gradient(ellipse at top, rgba(212,168,83,0.08) 0%, transparent 55%), linear-gradient(180deg, rgba(0,0,0,0.3) 0%, var(--color-bg) 100%)',
         }}
       />
 
-      <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+      {/* Decorative dot pattern */}
+      <div
+        className="absolute inset-0 opacity-[0.06] pointer-events-none"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 1px 1px, var(--color-gold) 1px, transparent 0)',
+          backgroundSize: '32px 32px',
+        }}
+      />
+
+      {/* Vertical gold accent line (top) */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-28 opacity-40 pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(to bottom, transparent, var(--color-gold))',
+        }}
+      />
+
+      {/* Corner accents */}
+      <div
+        className="absolute top-24 left-8 md:left-16 w-20 h-px opacity-30 pointer-events-none"
+        style={{ backgroundColor: 'var(--color-gold)' }}
+      />
+      <div
+        className="absolute top-24 left-8 md:left-16 w-px h-20 opacity-30 pointer-events-none"
+        style={{ backgroundColor: 'var(--color-gold)' }}
+      />
+      <div
+        className="absolute top-24 right-8 md:right-16 w-20 h-px opacity-30 pointer-events-none"
+        style={{ backgroundColor: 'var(--color-gold)' }}
+      />
+      <div
+        className="absolute top-24 right-8 md:right-16 w-px h-20 opacity-30 pointer-events-none"
+        style={{ backgroundColor: 'var(--color-gold)' }}
+      />
+
+      {/* Content */}
+      <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pt-12 animate-fade-in">
+        {/* Museum label */}
+        <div className="inline-flex items-center gap-2 mb-6 px-4 py-1.5 rounded-full border"
+          style={{
+            borderColor: 'rgba(212, 168, 83, 0.3)',
+            backgroundColor: 'rgba(212, 168, 83, 0.05)',
+          }}
         >
-          <p
-            className="text-sm md:text-base tracking-[0.3em] uppercase mb-4"
+          <Sparkles size={12} style={{ color: 'var(--color-gold)' }} />
+          <span
+            className="text-[10px] md:text-xs tracking-[0.3em] uppercase font-medium"
             style={{ color: 'var(--color-gold)' }}
           >
             National Archives of Korea
-          </p>
-        </motion.div>
+          </span>
+        </div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
-          className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6"
-        >
+        {/* Divider + title */}
+        <div className="flex items-center justify-center gap-5 mb-6">
+          <div
+            className="h-px w-12 md:w-20 opacity-40"
+            style={{ backgroundColor: 'var(--color-gold)' }}
+          />
+          <p
+            className="text-[10px] md:text-xs tracking-[0.4em] uppercase font-medium"
+            style={{ color: 'var(--color-gold)' }}
+          >
+            Restoration Archive
+          </p>
+          <div
+            className="h-px w-12 md:w-20 opacity-40"
+            style={{ backgroundColor: 'var(--color-gold)' }}
+          />
+        </div>
+
+        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.1] mb-8 tracking-tight">
           <span style={{ color: 'var(--color-gold)' }}>기록유산</span>의
           <br />
           복원과 보존
-        </motion.h1>
+        </h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
-          className="text-lg md:text-xl mb-10"
+        <p
+          className="text-base md:text-xl mb-12 leading-relaxed max-w-2xl mx-auto"
           style={{ color: 'var(--color-text-secondary)' }}
         >
           국가기록원의 기록물 복원 사업 아카이브.
           <br className="hidden sm:block" />
           시간이 훼손한 기록을, 기술로 되살립니다.
-        </motion.p>
+        </p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6, ease: 'easeOut' }}
-          className="flex flex-col sm:flex-row gap-4 justify-center"
-        >
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href="/cases"
-            className="inline-flex items-center justify-center px-8 py-3 rounded-lg font-medium text-black transition-all hover:scale-105"
+            className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-bold text-black transition-all duration-300 hover:shadow-[0_10px_30px_-5px_rgba(212,168,83,0.5)]"
             style={{ backgroundColor: 'var(--color-gold)' }}
           >
-            복원 사례 보기
+            <span>복원 사례 보기</span>
+            <ArrowRight
+              size={16}
+              className="transition-transform duration-300 group-hover:translate-x-1"
+            />
           </Link>
           <Link
-            href="/about"
-            className="inline-flex items-center justify-center px-8 py-3 rounded-lg font-medium border transition-all hover:scale-105"
+            href="/stories"
+            className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-bold border-2 transition-all duration-300 hover:bg-[var(--color-gold)]/5"
             style={{
               borderColor: 'var(--color-gold)',
               color: 'var(--color-gold)',
             }}
           >
-            프로젝트 소개
+            <span>기획전시 둘러보기</span>
+            <ArrowRight
+              size={16}
+              className="transition-transform duration-300 group-hover:translate-x-1"
+            />
           </Link>
-        </motion.div>
+        </div>
       </div>
 
       {/* Scroll indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
-      >
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none">
+        <span
+          className="text-[9px] tracking-[0.3em] uppercase font-medium opacity-60"
+          style={{ color: 'var(--color-gold)' }}
         >
-          <ChevronDown size={24} style={{ color: 'var(--color-gold)' }} />
-        </motion.div>
-      </motion.div>
+          Scroll
+        </span>
+        <ChevronDown
+          size={20}
+          className="animate-bounce"
+          style={{ color: 'var(--color-gold)' }}
+        />
+      </div>
     </section>
   )
 }
