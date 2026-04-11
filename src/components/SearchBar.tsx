@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X } from 'lucide-react'
+import { useT } from '@/i18n/LanguageProvider'
 
 export default function SearchBar() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useT()
   const [query, setQuery] = useState(searchParams.get('search') || '')
   const [isFocused, setIsFocused] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -71,7 +73,7 @@ export default function SearchBar() {
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        placeholder="제목, 내용, 기관명으로 검색..."
+        placeholder={t.search.placeholder}
         className="flex-1 pr-3 py-3.5 bg-transparent text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none"
         style={{ color: 'var(--color-text)' }}
       />
@@ -80,7 +82,7 @@ export default function SearchBar() {
           type="button"
           onClick={clearSearch}
           className="mr-2 p-1.5 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
-          aria-label="검색어 지우기"
+          aria-label={t.search.clear}
         >
           <X size={14} style={{ color: 'var(--color-text-muted)' }} />
         </button>
@@ -93,7 +95,7 @@ export default function SearchBar() {
             color: 'var(--color-text-muted)',
           }}
         >
-          검색
+          {t.search.kbdHint}
         </kbd>
       )}
     </label>

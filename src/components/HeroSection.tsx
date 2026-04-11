@@ -1,7 +1,11 @@
+'use client'
+
 import Link from 'next/link'
 import { ChevronDown, ArrowRight, Sparkles } from 'lucide-react'
+import { useT } from '@/i18n/LanguageProvider'
 
 export default function HeroSection() {
+  const t = useT()
   return (
     <section className="relative min-h-[88vh] flex items-center justify-center overflow-hidden">
       {/* Gradient background */}
@@ -64,7 +68,7 @@ export default function HeroSection() {
             className="text-[10px] md:text-xs tracking-[0.3em] uppercase font-medium"
             style={{ color: 'var(--color-gold)' }}
           >
-            National Archives of Korea
+            {t.hero.eyebrowTop}
           </span>
         </div>
 
@@ -78,7 +82,7 @@ export default function HeroSection() {
             className="text-[10px] md:text-xs tracking-[0.4em] uppercase font-medium"
             style={{ color: 'var(--color-gold)' }}
           >
-            Restoration Archive
+            {t.hero.eyebrowMiddle}
           </p>
           <div
             className="h-px w-12 md:w-20 opacity-40"
@@ -87,18 +91,17 @@ export default function HeroSection() {
         </div>
 
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.1] mb-8 tracking-tight">
-          <span style={{ color: 'var(--color-gold)' }}>기록유산</span>의
-          <br />
-          복원과 보존
+          <span style={{ color: 'var(--color-gold)' }}>{t.hero.titleAccent}</span>
+          {t.hero.titleTail}
         </h1>
 
         <p
           className="text-base md:text-xl mb-12 leading-relaxed max-w-2xl mx-auto"
           style={{ color: 'var(--color-text-secondary)' }}
         >
-          국가기록원의 기록물 복원 사업 아카이브.
+          {t.hero.subtitle1}
           <br className="hidden sm:block" />
-          시간이 훼손한 기록을, 기술로 되살립니다.
+          {t.hero.subtitle2}
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -107,7 +110,7 @@ export default function HeroSection() {
             className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full font-bold text-black transition-all duration-300 hover:shadow-[0_10px_30px_-5px_rgba(212,168,83,0.5)]"
             style={{ backgroundColor: 'var(--color-gold)' }}
           >
-            <span>복원 사례 보기</span>
+            <span>{t.hero.ctaCases}</span>
             <ArrowRight
               size={16}
               className="transition-transform duration-300 group-hover:translate-x-1"
@@ -121,7 +124,7 @@ export default function HeroSection() {
               color: 'var(--color-gold)',
             }}
           >
-            <span>기획전시 둘러보기</span>
+            <span>{t.hero.ctaStories}</span>
             <ArrowRight
               size={16}
               className="transition-transform duration-300 group-hover:translate-x-1"
@@ -136,7 +139,7 @@ export default function HeroSection() {
           className="text-[9px] tracking-[0.3em] uppercase font-medium opacity-60"
           style={{ color: 'var(--color-gold)' }}
         >
-          Scroll
+          {t.hero.scroll}
         </span>
         <ChevronDown
           size={20}

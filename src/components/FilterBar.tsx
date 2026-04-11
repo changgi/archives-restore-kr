@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { X, SlidersHorizontal, Tag, Calendar, Building2, FileImage, Film } from 'lucide-react'
 import type { Organization } from '@/types'
+import { useT } from '@/i18n/LanguageProvider'
 
 interface FilterBarProps {
   organizations: Organization[]
@@ -13,6 +14,7 @@ interface FilterBarProps {
 export default function FilterBar({ organizations, years }: FilterBarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useT()
 
   const currentCategory = searchParams.get('category') || 'all'
   const currentYear = searchParams.get('year') || ''
@@ -59,7 +61,7 @@ export default function FilterBar({ organizations, years }: FilterBarProps) {
           style={{ color: 'var(--color-gold)' }}
         >
           <SlidersHorizontal size={12} />
-          <span>Filters</span>
+          <span>{t.filters.label}</span>
         </div>
         {hasActiveFilters && (
           <button
@@ -71,7 +73,7 @@ export default function FilterBar({ organizations, years }: FilterBarProps) {
             }}
           >
             <X size={11} />
-            <span>초기화</span>
+            <span>{t.filters.reset}</span>
           </button>
         )}
       </div>
@@ -115,13 +117,13 @@ export default function FilterBar({ organizations, years }: FilterBarProps) {
             style={{ color: 'var(--color-text)' }}
           >
             <option value="all" style={selectStyle}>
-              전체 유형
+              {t.filters.allCategories}
             </option>
             <option value="paper" style={selectStyle}>
-              종이류
+              {t.filters.paper}
             </option>
             <option value="audiovisual" style={selectStyle}>
-              시청각
+              {t.filters.audiovisual}
             </option>
           </select>
         </label>
@@ -152,11 +154,11 @@ export default function FilterBar({ organizations, years }: FilterBarProps) {
             style={{ color: 'var(--color-text)' }}
           >
             <option value="" style={selectStyle}>
-              전체 연도
+              {t.filters.allYears}
             </option>
             {years.map((y) => (
               <option key={y} value={y} style={selectStyle}>
-                {y}년
+                {y}
               </option>
             ))}
           </select>
@@ -188,7 +190,7 @@ export default function FilterBar({ organizations, years }: FilterBarProps) {
             style={{ color: 'var(--color-text)' }}
           >
             <option value="" style={selectStyle}>
-              전체 기관
+              {t.filters.allOrganizations}
             </option>
             {organizations.map((org) => (
               <option key={org.id} value={org.id} style={selectStyle}>
@@ -211,11 +213,11 @@ export default function FilterBar({ organizations, years }: FilterBarProps) {
                 color: 'var(--color-gold)',
               }}
             >
-              <span>{currentCategory === 'paper' ? '종이류' : '시청각'}</span>
+              <span>{currentCategory === 'paper' ? t.filters.paper : t.filters.audiovisual}</span>
               <button
                 onClick={() => updateFilter('category', 'all')}
                 className="p-0.5 rounded-full hover:bg-[var(--color-gold)]/10"
-                aria-label="유형 필터 제거"
+                aria-label={t.filters.reset}
               >
                 <X size={10} />
               </button>
@@ -230,11 +232,11 @@ export default function FilterBar({ organizations, years }: FilterBarProps) {
                 color: 'var(--color-gold)',
               }}
             >
-              <span>{currentYear}년</span>
+              <span>{currentYear}</span>
               <button
                 onClick={() => updateFilter('year', '')}
                 className="p-0.5 rounded-full hover:bg-[var(--color-gold)]/10"
-                aria-label="연도 필터 제거"
+                aria-label={t.filters.reset}
               >
                 <X size={10} />
               </button>
@@ -250,12 +252,12 @@ export default function FilterBar({ organizations, years }: FilterBarProps) {
               }}
             >
               <span className="truncate">
-                {organizations.find((o) => o.id === currentOrg)?.name || '기관'}
+                {organizations.find((o) => o.id === currentOrg)?.name || ''}
               </span>
               <button
                 onClick={() => updateFilter('organization', '')}
                 className="p-0.5 rounded-full hover:bg-[var(--color-gold)]/10 flex-shrink-0"
-                aria-label="기관 필터 제거"
+                aria-label={t.filters.reset}
               >
                 <X size={10} />
               </button>

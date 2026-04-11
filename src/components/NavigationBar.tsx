@@ -4,21 +4,24 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X, Sun, Moon, Archive } from 'lucide-react'
-
-const navLinks = [
-  { href: '/cases', label: '복원 사례' },
-  { href: '/stories', label: '기획전시' },
-  { href: '/learn', label: '보존교육' },
-  { href: '/timeline', label: '타임라인' },
-  { href: '/gallery', label: '갤러리' },
-  { href: '/about', label: '소개' },
-]
+import { useT } from '@/i18n/LanguageProvider'
+import LanguageSwitcher from './LanguageSwitcher'
 
 export default function NavigationBar() {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const pathname = usePathname()
+  const t = useT()
+
+  const navLinks = [
+    { href: '/cases', label: t.nav.cases },
+    { href: '/stories', label: t.nav.stories },
+    { href: '/learn', label: t.nav.learn },
+    { href: '/timeline', label: t.nav.timeline },
+    { href: '/gallery', label: t.nav.gallery },
+    { href: '/about', label: t.nav.about },
+  ]
 
   useEffect(() => {
     const saved = localStorage.getItem('theme') as 'dark' | 'light' | null
@@ -121,10 +124,11 @@ export default function NavigationBar() {
             className="mx-2 h-5 w-px"
             style={{ backgroundColor: 'var(--color-border)' }}
           />
+          <LanguageSwitcher />
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-gold)] hover:bg-[var(--color-bg-hover)] transition-colors"
-            aria-label="테마 전환"
+            aria-label={t.nav.theme}
           >
             {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           </button>
@@ -132,17 +136,18 @@ export default function NavigationBar() {
 
         {/* Mobile controls */}
         <div className="flex md:hidden items-center gap-1">
+          <LanguageSwitcher compact />
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-gold)] transition-colors"
-            aria-label="테마 전환"
+            aria-label={t.nav.theme}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-gold)] transition-colors"
-            aria-label="메뉴"
+            aria-label={t.nav.menu}
             aria-expanded={isOpen}
           >
             {isOpen ? <X size={22} /> : <Menu size={22} />}

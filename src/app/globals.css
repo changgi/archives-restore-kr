@@ -54,10 +54,43 @@ html {
 }
 
 body {
-  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont,
+    'Noto Sans KR', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans TC',
+    'Noto Sans Arabic', 'Segoe UI', 'Inter', system-ui, sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text);
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Locale-specific font fallbacks: use system fonts so each language
+   renders with its native script support without extra web-font load */
+html[data-locale='ja'] body {
+  font-family: 'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', 'Meiryo',
+    'Pretendard Variable', sans-serif;
+}
+html[data-locale='zh-CN'] body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC',
+    'Pretendard Variable', sans-serif;
+}
+html[data-locale='zh-HK'] body {
+  font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC',
+    'Pretendard Variable', sans-serif;
+}
+html[data-locale='ar'] body {
+  font-family: 'Segoe UI', 'Noto Sans Arabic', 'Tahoma', 'Arial',
+    'Pretendard Variable', sans-serif;
+}
+html[data-locale='ru'] body {
+  font-family: 'Segoe UI', 'Helvetica Neue', 'Arial',
+    'Pretendard Variable', sans-serif;
+}
+
+/* RTL layout support (Arabic) */
+html[dir='rtl'] {
+  /* Logical properties already respect dir, just set text direction */
+}
+html[dir='rtl'] body {
+  text-align: start;
 }
 
 ::selection {
