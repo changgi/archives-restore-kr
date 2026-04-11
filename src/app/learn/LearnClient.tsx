@@ -4,6 +4,53 @@ import { useState, useRef, useEffect, memo, useCallback } from 'react'
 import { Play, X, Check, Clock, List, FileText, AlignLeft, Loader2 } from 'lucide-react'
 import type { RelatedVideo, VideoFrame, VideoTranscript } from '@/types'
 import VideoPlayer, { type VideoPlayerHandle } from '@/components/VideoPlayer'
+import PageHeader from '@/components/PageHeader'
+import { useT } from '@/i18n/LanguageProvider'
+import type { LucideIcon } from 'lucide-react'
+
+// ─── Stat pill for Learn page header ────────────────────────────
+function LearnStat({
+  icon: Icon,
+  value,
+  label,
+}: {
+  icon: LucideIcon
+  value: string
+  label: 'videos' | 'runtime' | 'frames'
+}) {
+  const t = useT()
+  const labels = {
+    videos: { text: t.learn?.statVideos ?? 'Videos', suffix: t.learn?.videosSuffix ?? '' },
+    runtime: { text: t.learn?.statRuntime ?? 'Total Runtime', suffix: t.learn?.runtimeSuffix ?? ' min' },
+    frames: { text: t.learn?.statKeyFrames ?? 'Key Frames', suffix: t.learn?.keyFramesSuffix ?? '' },
+  }
+  const { text, suffix } = labels[label]
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center"
+        style={{ backgroundColor: 'rgba(212, 168, 83, 0.12)' }}
+      >
+        <Icon size={16} style={{ color: 'var(--color-gold)' }} />
+      </div>
+      <div className="text-left">
+        <p
+          className="text-xl md:text-2xl font-bold leading-none tabular-nums"
+          style={{ color: 'var(--color-gold)' }}
+        >
+          {value}
+          {suffix}
+        </p>
+        <p
+          className="text-[10px] tracking-[0.2em] uppercase mt-1"
+          style={{ color: 'var(--color-text-muted)' }}
+        >
+          {text}
+        </p>
+      </div>
+    </div>
+  )
+}
 
 interface LearnClientProps {
   videos: RelatedVideo[]
@@ -576,142 +623,23 @@ export default function LearnClient({ videos }: LearnClientProps) {
 
   return (
     <div className="pt-24 pb-24">
-      {/* Hero Header */}
-      <section className="relative overflow-hidden mb-14">
-        {/* Decorative dot pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 1px 1px, var(--color-gold) 1px, transparent 0)',
-            backgroundSize: '32px 32px',
-          }}
-        />
-        {/* Vertical gold accent */}
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 opacity-40 pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(to bottom, transparent, var(--color-gold))',
-          }}
-        />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 md:pt-16 text-center">
-          <p
-            className="text-xs tracking-[0.3em] uppercase mb-5 font-medium"
-            style={{ color: 'var(--color-gold)' }}
+      <PageHeader slug="learn">
+        {videos.length > 0 && (
+          <div
+            className="mt-10 inline-flex flex-wrap items-center justify-center gap-4 md:gap-6 px-6 md:px-10 py-5 rounded-2xl border"
+            style={{
+              backgroundColor: 'var(--color-bg-card)',
+              borderColor: 'var(--color-border)',
+            }}
           >
-            Conservation Education
-          </p>
-          <div className="flex items-center justify-center gap-3 md:gap-5 mb-5">
-            <div
-              className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
-              style={{ backgroundColor: 'var(--color-gold)' }}
-            />
-            <h1 className="text-4xl md:text-6xl font-bold whitespace-nowrap">
-              보존 <span style={{ color: 'var(--color-gold)' }}>교육</span>
-            </h1>
-            <div
-              className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
-              style={{ backgroundColor: 'var(--color-gold)' }}
-            />
+            <LearnStat icon={Play} value={`${videos.length}`} label="videos" />
+            <div className="hidden sm:block h-10 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
+            <LearnStat icon={Clock} value={`${totalMinutes}`} label="runtime" />
+            <div className="hidden sm:block h-10 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
+            <LearnStat icon={FileText} value={`${totalFrames}`} label="frames" />
           </div>
-          <p
-            className="text-base md:text-lg max-w-2xl mx-auto leading-relaxed"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            기록물 보존과 복원의 과정을 영상으로 확인하세요.
-            <br />
-            AI가 분석한 핵심 내용과 주요 장면을 함께 감상할 수 있습니다.
-          </p>
-
-          {/* Stats pill */}
-          {videos.length > 0 && (
-            <div
-              className="mt-10 inline-flex flex-wrap items-center justify-center gap-4 md:gap-6 px-6 md:px-10 py-5 rounded-2xl border"
-              style={{
-                backgroundColor: 'var(--color-bg-card)',
-                borderColor: 'var(--color-border)',
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: 'rgba(212, 168, 83, 0.12)' }}
-                >
-                  <Play size={16} style={{ color: 'var(--color-gold)' }} />
-                </div>
-                <div className="text-left">
-                  <p
-                    className="text-xl md:text-2xl font-bold leading-none"
-                    style={{ color: 'var(--color-gold)' }}
-                  >
-                    {videos.length}편
-                  </p>
-                  <p
-                    className="text-[10px] tracking-[0.2em] uppercase mt-1"
-                    style={{ color: 'var(--color-text-muted)' }}
-                  >
-                    Videos
-                  </p>
-                </div>
-              </div>
-              <div
-                className="hidden sm:block h-10 w-px"
-                style={{ backgroundColor: 'var(--color-border)' }}
-              />
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: 'rgba(212, 168, 83, 0.12)' }}
-                >
-                  <Clock size={16} style={{ color: 'var(--color-gold)' }} />
-                </div>
-                <div className="text-left">
-                  <p
-                    className="text-xl md:text-2xl font-bold leading-none"
-                    style={{ color: 'var(--color-gold)' }}
-                  >
-                    {totalMinutes}분
-                  </p>
-                  <p
-                    className="text-[10px] tracking-[0.2em] uppercase mt-1"
-                    style={{ color: 'var(--color-text-muted)' }}
-                  >
-                    Total Runtime
-                  </p>
-                </div>
-              </div>
-              <div
-                className="hidden sm:block h-10 w-px"
-                style={{ backgroundColor: 'var(--color-border)' }}
-              />
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: 'rgba(212, 168, 83, 0.12)' }}
-                >
-                  <FileText size={16} style={{ color: 'var(--color-gold)' }} />
-                </div>
-                <div className="text-left">
-                  <p
-                    className="text-xl md:text-2xl font-bold leading-none"
-                    style={{ color: 'var(--color-gold)' }}
-                  >
-                    {totalFrames}장
-                  </p>
-                  <p
-                    className="text-[10px] tracking-[0.2em] uppercase mt-1"
-                    style={{ color: 'var(--color-text-muted)' }}
-                  >
-                    Key Frames
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
+        )}
+      </PageHeader>
 
       {/* Video Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

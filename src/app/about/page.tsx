@@ -20,6 +20,7 @@ import {
   getFeaturedStories,
   getRelatedVideos,
 } from '@/lib/queries'
+import PageHeader from '@/components/PageHeader'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,58 +76,7 @@ export default async function AboutPage() {
 
   return (
     <div className="pt-24 pb-24">
-      {/* HERO */}
-      <section className="relative overflow-hidden mb-16 md:mb-24">
-        {/* Decorative dot pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 1px 1px, var(--color-gold) 1px, transparent 0)',
-            backgroundSize: '32px 32px',
-          }}
-        />
-        {/* Vertical gold accent */}
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 opacity-40 pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(to bottom, transparent, var(--color-gold))',
-          }}
-        />
-
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 md:pt-20 text-center">
-          <p
-            className="text-xs tracking-[0.3em] uppercase mb-5 font-medium"
-            style={{ color: 'var(--color-gold)' }}
-          >
-            About This Project
-          </p>
-          <div className="flex items-center justify-center gap-3 md:gap-5 mb-5">
-            <div
-              className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
-              style={{ backgroundColor: 'var(--color-gold)' }}
-            />
-            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-tight">
-              기록유산 <span style={{ color: 'var(--color-gold)' }}>복원</span>{' '}
-              아카이브
-            </h1>
-            <div
-              className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
-              style={{ backgroundColor: 'var(--color-gold)' }}
-            />
-          </div>
-          <p
-            className="text-base md:text-xl leading-relaxed max-w-3xl mx-auto"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            시간이 훼손한 기록을, 기술로 되살립니다.
-            <br />
-            국가기록원의 기록물 복원 사업을 인터랙티브한 디지털 전시로 만날 수
-            있습니다.
-          </p>
-        </div>
-      </section>
+      <PageHeader slug="about" />
 
       {/* STATS */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20 md:mb-28">

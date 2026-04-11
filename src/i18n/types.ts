@@ -130,6 +130,31 @@ export interface Messages {
     prev: string
     next: string
   }
+  learn?: {
+    statVideos?: string
+    statRuntime?: string
+    statKeyFrames?: string
+    videosSuffix?: string
+    runtimeSuffix?: string
+    keyFramesSuffix?: string
+    sidebarInfo?: string
+    tabTimeline?: string
+    tabTranscript?: string
+    tabRelated?: string
+    noTimeline?: string
+    noTranscript?: string
+    playingBadge?: string
+    loadingVideo?: string
+    currentlyPlaying?: string
+    cardMore?: string
+    summary?: string
+    keyPoints?: string
+    mainScenes?: string
+  }
+  about?: {
+    headline1?: string
+    headline2?: string
+  }
   timeline: {
     yearRange: string
     totalCases: string

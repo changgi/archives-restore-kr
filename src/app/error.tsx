@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
+import { useT } from '@/i18n/LanguageProvider'
 
 interface ErrorProps {
   error: Error & { digest?: string }
@@ -10,6 +11,7 @@ interface ErrorProps {
 }
 
 export default function GlobalError({ error, reset }: ErrorProps) {
+  const t = useT()
   useEffect(() => {
     console.error('[App error]', error)
   }, [error])
@@ -40,7 +42,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
           className="text-xs tracking-[0.3em] uppercase mb-5 font-medium"
           style={{ color: 'var(--color-red)' }}
         >
-          System Error
+          {t.error.systemError}
         </p>
 
         <div className="flex items-center justify-center gap-5 mb-8">
@@ -67,19 +69,18 @@ export default function GlobalError({ error, reset }: ErrorProps) {
         </div>
 
         <h1 className="text-3xl md:text-4xl font-bold mb-4">
-          예상치 못한 오류가 <br className="sm:hidden" />
-          발생했습니다
+          {t.error.title1} <br className="sm:hidden" />
+          {t.error.title2}
         </h1>
         <p
           className="text-base md:text-lg mb-8 leading-relaxed"
           style={{ color: 'var(--color-text-secondary)' }}
         >
-          요청을 처리하는 중에 문제가 발생했습니다.
+          {t.error.desc1}
           <br className="hidden sm:block" />
-          잠시 후 다시 시도해 주세요.
+          {t.error.desc2}
         </p>
 
-        {/* Error digest (optional) */}
         {error.digest && (
           <div
             className="inline-block mb-8 px-3 py-1.5 rounded-full border text-[10px] font-mono tracking-wider"
@@ -89,11 +90,10 @@ export default function GlobalError({ error, reset }: ErrorProps) {
               color: 'var(--color-text-muted)',
             }}
           >
-            Error ID: {error.digest}
+            {t.error.errorId}: {error.digest}
           </div>
         )}
 
-        {/* CTA buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={reset}
@@ -104,7 +104,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
               size={16}
               className="transition-transform duration-500 group-hover:rotate-180"
             />
-            <span>다시 시도</span>
+            <span>{t.error.retry}</span>
           </button>
           <Link
             href="/"
@@ -115,7 +115,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
             }}
           >
             <Home size={16} />
-            <span>홈으로 돌아가기</span>
+            <span>{t.error.goHome}</span>
           </Link>
         </div>
       </div>

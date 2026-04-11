@@ -1,11 +1,14 @@
+'use client'
+
 import Link from 'next/link'
 import { Search, Home } from 'lucide-react'
 import SmartBackButton from '@/components/SmartBackButton'
+import { useT } from '@/i18n/LanguageProvider'
 
 export default function NotFound() {
+  const t = useT()
   return (
     <div className="relative min-h-[85vh] flex items-center justify-center overflow-hidden pt-24 pb-24">
-      {/* Decorative dot pattern */}
       <div
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
         style={{
@@ -14,25 +17,21 @@ export default function NotFound() {
           backgroundSize: '32px 32px',
         }}
       />
-      {/* Vertical gold accent */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 opacity-40 pointer-events-none"
         style={{
-          background:
-            'linear-gradient(to bottom, transparent, var(--color-gold))',
+          background: 'linear-gradient(to bottom, transparent, var(--color-gold))',
         }}
       />
 
       <div className="relative max-w-2xl mx-auto px-4 text-center animate-fade-in">
-        {/* Eyebrow */}
         <p
           className="text-xs tracking-[0.3em] uppercase mb-5 font-medium"
           style={{ color: 'var(--color-gold)' }}
         >
-          Error 404
+          {t.notFound.eyebrow}
         </p>
 
-        {/* Big 404 with dividers */}
         <div className="flex items-center justify-center gap-3 md:gap-5 mb-8">
           <div
             className="hidden sm:block h-px w-10 md:w-16 opacity-40 flex-shrink-0"
@@ -51,18 +50,17 @@ export default function NotFound() {
         </div>
 
         <h2 className="text-2xl md:text-3xl font-bold mb-4">
-          페이지를 찾을 수 없습니다
+          {t.notFound.title}
         </h2>
         <p
           className="text-base md:text-lg mb-10 leading-relaxed"
           style={{ color: 'var(--color-text-secondary)' }}
         >
-          요청하신 기록은 이 아카이브에 존재하지 않거나,
+          {t.notFound.desc1}
           <br className="hidden sm:block" />
-          다른 곳으로 이동했을 수 있습니다.
+          {t.notFound.desc2}
         </p>
 
-        {/* CTA buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             href="/"
@@ -70,7 +68,7 @@ export default function NotFound() {
             style={{ backgroundColor: 'var(--color-gold)' }}
           >
             <Home size={16} />
-            <span>홈으로 돌아가기</span>
+            <span>{t.notFound.goHome}</span>
           </Link>
           <Link
             href="/cases"
@@ -81,16 +79,15 @@ export default function NotFound() {
             }}
           >
             <Search size={16} />
-            <span>복원 사례 탐색</span>
+            <span>{t.notFound.exploreCases}</span>
           </Link>
         </div>
 
-        {/* Back link + About link */}
         <div
           className="mt-10 pt-8 border-t inline-flex items-center gap-6"
           style={{ borderColor: 'var(--color-border)' }}
         >
-          <SmartBackButton fallbackHref="/" label="이전 페이지" />
+          <SmartBackButton fallbackHref="/" label={t.notFound.back} />
           <span
             className="h-4 w-px"
             style={{ backgroundColor: 'var(--color-border)' }}
@@ -100,7 +97,7 @@ export default function NotFound() {
             className="text-xs tracking-[0.2em] uppercase inline-flex items-center gap-1.5 hover:text-[var(--color-gold)] transition-colors"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            프로젝트 소개
+            {t.notFound.aboutLink}
           </Link>
         </div>
       </div>

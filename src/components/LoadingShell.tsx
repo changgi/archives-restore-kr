@@ -1,17 +1,36 @@
+'use client'
+
 import { Loader2 } from 'lucide-react'
+import { useT } from '@/i18n/LanguageProvider'
+
+type LoadingSlug = 'cases' | 'stories' | 'learn' | 'timeline' | 'gallery'
 
 interface LoadingShellProps {
+  slug?: LoadingSlug
+  /** Overrides — fall back to translated strings from slug if omitted */
   eyebrow?: string
   label?: string
 }
 
 export default function LoadingShell({
-  eyebrow = 'Loading',
-  label = '불러오는 중...',
+  slug,
+  eyebrow,
+  label,
 }: LoadingShellProps) {
+  const t = useT()
+
+  const slugEyebrow = slug
+    ? t.loading[`${slug}Eyebrow` as keyof typeof t.loading]
+    : 'Loading'
+  const slugLabel = slug
+    ? t.loading[`${slug}Label` as keyof typeof t.loading]
+    : ''
+
+  const displayEyebrow = eyebrow ?? slugEyebrow
+  const displayLabel = label ?? slugLabel
+
   return (
     <div className="relative min-h-[70vh] flex items-center justify-center overflow-hidden pt-24 pb-24">
-      {/* Dot pattern */}
       <div
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
         style={{
@@ -20,12 +39,10 @@ export default function LoadingShell({
           backgroundSize: '32px 32px',
         }}
       />
-      {/* Vertical accent */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 opacity-40 pointer-events-none"
         style={{
-          background:
-            'linear-gradient(to bottom, transparent, var(--color-gold))',
+          background: 'linear-gradient(to bottom, transparent, var(--color-gold))',
         }}
       />
 
@@ -34,7 +51,7 @@ export default function LoadingShell({
           className="text-xs tracking-[0.3em] uppercase mb-5 font-medium"
           style={{ color: 'var(--color-gold)' }}
         >
-          {eyebrow}
+          {displayEyebrow}
         </p>
         <div className="flex items-center justify-center gap-5 mb-6">
           <div
@@ -63,7 +80,7 @@ export default function LoadingShell({
           className="text-sm"
           style={{ color: 'var(--color-text-secondary)' }}
         >
-          {label}
+          {displayLabel}
         </p>
       </div>
     </div>

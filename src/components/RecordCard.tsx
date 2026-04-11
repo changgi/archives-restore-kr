@@ -1,7 +1,10 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
 import { Building2, Calendar, ArrowUpRight, FileImage, Film } from 'lucide-react'
 import type { RestorationCase } from '@/types'
+import { useT } from '@/i18n/LanguageProvider'
 
 interface RecordCardProps {
   record: RestorationCase
@@ -9,6 +12,7 @@ interface RecordCardProps {
 }
 
 export default function RecordCard({ record, index = 0 }: RecordCardProps) {
+  const t = useT()
   const beforeImage = record.case_images?.find(
     (img) => img.image_type === 'before',
   )
@@ -103,9 +107,9 @@ export default function RecordCard({ record, index = 0 }: RecordCardProps) {
                 color: 'var(--color-gold)',
               }}
             >
-              <span>Before</span>
+              <span>{t.gallery.before}</span>
               <span className="opacity-50">·</span>
-              <span>After</span>
+              <span>{t.gallery.after}</span>
             </div>
           )}
         </div>
@@ -135,13 +139,13 @@ export default function RecordCard({ record, index = 0 }: RecordCardProps) {
               className="text-[10px] tracking-[0.2em] uppercase font-medium"
               style={{ color: 'var(--color-text-muted)' }}
             >
-              {record.support_type || '복원 완료'}
+              {record.support_type || ''}
             </span>
             <div
               className="flex items-center gap-1 text-xs font-bold transition-all duration-300 group-hover:gap-2"
               style={{ color: 'var(--color-gold)' }}
             >
-              <span>자세히</span>
+              <span>{t.card.details}</span>
               <ArrowUpRight
                 size={13}
                 className="transition-transform duration-300 group-hover:rotate-45"

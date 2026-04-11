@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowUpRight, Sparkles } from 'lucide-react'
 import type { FeaturedStory } from '@/types'
+import { useT } from '@/i18n/LanguageProvider'
 
 interface StoryCardProps {
   story: FeaturedStory
@@ -12,6 +13,7 @@ interface StoryCardProps {
 }
 
 export default function StoryCard({ story, index }: StoryCardProps) {
+  const t = useT()
   const [hovered, setHovered] = useState(false)
 
   const beforeImg = story.before_image_url
@@ -104,7 +106,7 @@ export default function StoryCard({ story, index }: StoryCardProps) {
               border: '1px solid rgba(212, 168, 83, 0.4)',
             }}
           >
-            {hovered ? '복원 후' : '복원 전'}
+            {hovered ? t.gallery.after : t.gallery.before}
           </div>
 
           {/* Bottom content */}
@@ -146,10 +148,10 @@ export default function StoryCard({ story, index }: StoryCardProps) {
             {story.producing_org && (
               <div>
                 <p
-                  className="tracking-wider uppercase mb-0.5"
+                  className="tracking-wider uppercase mb-0.5 text-[10px]"
                   style={{ color: 'var(--color-text-muted)' }}
                 >
-                  소장
+                  {t.footer.sources}
                 </p>
                 <p className="font-medium truncate max-w-[200px]">
                   {story.producing_org}
@@ -159,14 +161,12 @@ export default function StoryCard({ story, index }: StoryCardProps) {
             {itemCount > 0 && (
               <div>
                 <p
-                  className="tracking-wider uppercase mb-0.5"
+                  className="tracking-wider uppercase mb-0.5 text-[10px]"
                   style={{ color: 'var(--color-text-muted)' }}
                 >
-                  소장품
+                  {t.card.clickToExplore}
                 </p>
-                <p className="font-medium">
-                  {itemCount}점
-                </p>
+                <p className="font-medium">{itemCount}</p>
               </div>
             )}
           </div>
@@ -175,7 +175,7 @@ export default function StoryCard({ story, index }: StoryCardProps) {
             className="flex items-center gap-2 text-sm font-bold transition-all duration-300 group-hover:gap-3"
             style={{ color: 'var(--color-gold)' }}
           >
-            <span className="tracking-wide">전시 관람</span>
+            <span className="tracking-wide">{t.card.viewExhibition}</span>
             <ArrowUpRight
               size={16}
               className="transition-transform duration-500 group-hover:rotate-45"

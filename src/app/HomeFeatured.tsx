@@ -5,12 +5,14 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, ArrowUpRight, Sparkles } from 'lucide-react'
 import type { FeaturedStory } from '@/types'
+import { useT } from '@/i18n/LanguageProvider'
 
 interface HomeFeaturedProps {
   stories: FeaturedStory[]
 }
 
 export default function HomeFeatured({ stories }: HomeFeaturedProps) {
+  const t = useT()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -169,7 +171,7 @@ export default function HomeFeatured({ stories }: HomeFeaturedProps) {
                     color: 'var(--color-gold)',
                   }}
                 >
-                  <span>{isHovered ? 'After' : 'Before'}</span>
+                  <span>{isHovered ? t.gallery.after : t.gallery.before}</span>
                 </div>
 
                 {/* Bottom overlay: period + hover hint */}
@@ -194,7 +196,7 @@ export default function HomeFeatured({ stories }: HomeFeaturedProps) {
                         : 'translateY(4px)',
                     }}
                   >
-                    <span>관람하기</span>
+                    <span>{t.card.viewExhibition}</span>
                     <ArrowUpRight size={11} />
                   </div>
                 </div>

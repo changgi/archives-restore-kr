@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import type { FeaturedStory } from '@/types'
+import { useT } from '@/i18n/LanguageProvider'
 
 interface ExhibitionNavProps {
   prev: FeaturedStory | null
@@ -17,6 +18,7 @@ function ExhibitionCard({
   story: FeaturedStory
   direction: 'prev' | 'next'
 }) {
+  const t = useT()
   const isPrev = direction === 'prev'
   const bgImage = story.after_image_url || story.before_image_url
 
@@ -80,7 +82,7 @@ function ExhibitionCard({
             border: '1px solid rgba(212, 168, 83, 0.3)',
           }}
         >
-          {isPrev ? '이전 전시' : '다음 전시'}
+          {isPrev ? t.card.previous : t.card.next}
         </span>
       </div>
 
@@ -112,7 +114,7 @@ function ExhibitionCard({
           }`}
           style={{ color: 'var(--color-gold)' }}
         >
-          <span>관람하기</span>
+          <span>{t.card.viewExhibition}</span>
           <ArrowRight size={12} className={isPrev ? '' : 'rotate-180'} />
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Archive, Building2, Clock } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useT } from '@/i18n/LanguageProvider'
 
 interface StatItemProps {
   label: string
@@ -143,9 +144,9 @@ export default function StatsCounter({
   totalOrgs,
   yearRange,
 }: StatsCounterProps) {
+  const t = useT()
   return (
     <section className="relative py-16 md:py-24 overflow-hidden">
-      {/* Dot pattern */}
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{
@@ -156,24 +157,26 @@ export default function StatsCounter({
       />
 
       <div className="relative max-w-6xl mx-auto px-4">
-        {/* Section eyebrow */}
         <div className="text-center mb-12">
           <p
             className="text-xs tracking-[0.3em] uppercase mb-4 font-medium"
             style={{ color: 'var(--color-gold)' }}
           >
-            By the Numbers
+            {t.sections.byTheNumbersEyebrow}
           </p>
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-3 md:gap-4">
             <div
-              className="h-px w-12 opacity-40"
+              className="hidden sm:block h-px w-12 opacity-40"
               style={{ backgroundColor: 'var(--color-gold)' }}
             />
             <h2 className="text-2xl md:text-3xl font-bold">
-              아카이브 <span style={{ color: 'var(--color-gold)' }}>현황</span>
+              {t.sections.byTheNumbersTitle}{' '}
+              <span style={{ color: 'var(--color-gold)' }}>
+                {t.sections.byTheNumbersAccent}
+              </span>
             </h2>
             <div
-              className="h-px w-12 opacity-40"
+              className="hidden sm:block h-px w-12 opacity-40"
               style={{ backgroundColor: 'var(--color-gold)' }}
             />
           </div>
@@ -183,25 +186,25 @@ export default function StatsCounter({
           <StatItem
             icon={Archive}
             sublabel="Total Cases"
-            label="복원 사례"
+            label={t.stats.totalCases}
             value={totalCases}
-            suffix="건"
+            suffix={t.stats.totalCasesSuffix}
             delay={0}
           />
           <StatItem
             icon={Building2}
             sublabel="Partner Orgs"
-            label="참여 기관"
+            label={t.stats.partnerOrgs}
             value={totalOrgs}
-            suffix="개"
+            suffix={t.stats.partnerOrgsSuffix}
             delay={100}
           />
           <StatItem
             icon={Clock}
             sublabel="Time Span"
-            label="복원 기간"
+            label={t.stats.timeSpan}
             value={yearRange.max - yearRange.min + 1}
-            suffix="년"
+            suffix={t.stats.timeSpanSuffix}
             delay={200}
           />
         </div>
