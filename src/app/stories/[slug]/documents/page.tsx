@@ -28,7 +28,13 @@ export default async function DocumentsPage({ params }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 bg-neutral-950">
-      <DocumentViewer documents={documents} storyTitle={story.title} />
+      <DocumentViewer
+        documents={documents}
+        storyTitle={story.title}
+        storySlug={slug}
+        externalLink={story.external_link}
+        externalLinkLabel={story.external_link_label}
+      />
     </div>
   )
 }
