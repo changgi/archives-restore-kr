@@ -282,8 +282,9 @@ export default async function Image() {
               >
                 Archives KR
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>
-                <span style={{ color: '#D4A853' }}>기록</span>유산 복원 아카이브
+              <div style={{ display: 'flex', fontSize: 20, fontWeight: 700 }}>
+                <span style={{ color: '#D4A853' }}>기록</span>
+                <span>유산 복원 아카이브</span>
               </div>
             </div>
           </div>
