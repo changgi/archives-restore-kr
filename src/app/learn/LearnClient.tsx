@@ -769,7 +769,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
                 <div className="flex flex-col lg:flex-row">
                   {/* Left: Video player + info */}
                   <div className="flex-1 min-w-0">
-                    <div className="bg-black">
+                    <div className="relative bg-black">
                       <VideoPlayer
                         ref={(h) => {
                           playerRef.current = h
@@ -797,11 +797,13 @@ export default function LearnClient({ videos }: LearnClientProps) {
                         }
                         onTimeChange={handleTimeChange}
                       />
-                      {/* Client-side voice dub via Web Speech API — works in
-                          all 13 locales when the video plays in a non-Korean
-                          locale and no pre-generated dub audio track exists. */}
-                      {locale !== 'ko' &&
-                        dubVideoEl &&
+                      {/* Client-side voice dub via Web Speech API. Renders
+                          its own visible toggle overlay. Activates only
+                          when the user clicks "Enable dub" (required for
+                          browser gesture-policy compliance). Hidden
+                          automatically when locale === 'ko' or when a
+                          pre-recorded audio track exists for this locale. */}
+                      {dubVideoEl &&
                         !activeVideo.video_audio_tracks?.find(
                           (a) => a.locale === locale,
                         ) && (
