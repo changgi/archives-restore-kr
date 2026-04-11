@@ -5,7 +5,7 @@ import { Play, X, Check, Clock, List, FileText, AlignLeft, Loader2 } from 'lucid
 import type { RelatedVideo, VideoFrame, VideoTranscript } from '@/types'
 import VideoPlayer, { type VideoPlayerHandle } from '@/components/VideoPlayer'
 import PageHeader from '@/components/PageHeader'
-import { useT } from '@/i18n/LanguageProvider'
+import { useT, useLocale } from '@/i18n/LanguageProvider'
 import type { LucideIcon } from 'lucide-react'
 
 // ─── Stat pill for Learn page header ────────────────────────────
@@ -396,9 +396,15 @@ const Sidebar = memo(function Sidebar({
   onSelectRelated,
 }: SidebarProps) {
   const [tab, setTab] = useState<SideTab>('timeline')
+  const { locale } = useLocale()
 
   const frames = video.video_frames ?? []
-  const transcripts = video.video_transcripts ?? []
+  // Prefer transcripts for the current locale; fall back to Korean.
+  const allTranscripts = video.video_transcripts ?? []
+  const localized = allTranscripts.filter((t) => (t.locale ?? 'ko') === locale)
+  const transcripts = localized.length > 0
+    ? localized
+    : allTranscripts.filter((t) => (t.locale ?? 'ko') === 'ko')
   const duration = video.duration_seconds ?? 0
 
   return (
@@ -526,6 +532,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
   }
 
   // Compute active chapter/transcript indices from a given time
+  const { locale } = useLocale()
   const computeActiveIndices = useCallback(
     (currentTime: number, video: RelatedVideo) => {
       const frames = video.video_frames ?? []
@@ -537,7 +544,13 @@ export default function LearnClient({ videos }: LearnClientProps) {
           if (currentTime >= frameTime) newChapterIdx = idx
         })
       }
-      const transcripts = video.video_transcripts ?? []
+      // Filter transcripts to match the set shown in the sidebar
+      // (current locale with Korean fallback).
+      const all = video.video_transcripts ?? []
+      const localized = all.filter((t) => (t.locale ?? 'ko') === locale)
+      const transcripts = localized.length > 0
+        ? localized
+        : all.filter((t) => (t.locale ?? 'ko') === 'ko')
       let newTranscriptIdx = -1
       if (transcripts.length) {
         transcripts.forEach((t, idx) => {
@@ -546,7 +559,7 @@ export default function LearnClient({ videos }: LearnClientProps) {
       }
       return { chapterIdx: newChapterIdx, transcriptIdx: newTranscriptIdx }
     },
-    []
+    [locale],
   )
 
   // Keep activeVideo in a ref so callbacks don't need to be recreated
@@ -746,12 +759,19 @@ export default function LearnClient({ videos }: LearnClientProps) {
                     <div className="bg-black">
                       <VideoPlayer
                         ref={playerRef}
-                        key={activeVideo.id}
+                        key={activeVideo.id + ':' + locale}
                         src={activeVideo.video_url}
                         hdSrc={activeVideo.hd_video_url}
                         title={activeVideo.title}
                         poster={activeVideo.thumbnail_url || undefined}
                         autoPlay
+                        dubAudioUrl={
+                          locale !== 'ko'
+                            ? activeVideo.video_audio_tracks?.find(
+                                (a) => a.locale === locale,
+                              )?.audio_url ?? null
+                            : null
+                        }
                         onTimeChange={handleTimeChange}
                       />
                     </div>

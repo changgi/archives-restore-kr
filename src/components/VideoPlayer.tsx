@@ -13,6 +13,13 @@ interface VideoPlayerProps {
   autoPlay?: boolean
   onClose?: () => void
   onTimeChange?: (currentTime: number) => void
+  /**
+   * Dubbed audio track URL for the current locale. When set, the video
+   * is muted and this audio track is played in sync via a hidden
+   * <audio> element. When unset (or same as original), the video's
+   * native audio is used.
+   */
+  dubAudioUrl?: string | null
 }
 
 export interface VideoPlayerHandle {
@@ -22,10 +29,22 @@ export interface VideoPlayerHandle {
 }
 
 const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function VideoPlayer(
-  { src, hdSrc, poster, title, modal = false, autoPlay = false, onClose, onTimeChange },
-  ref
+  {
+    src,
+    hdSrc,
+    poster,
+    title,
+    modal = false,
+    autoPlay = false,
+    onClose,
+    onTimeChange,
+    dubAudioUrl,
+  },
+  ref,
 ) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const hasDub = Boolean(dubAudioUrl)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -228,6 +247,48 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
     }
   }, [autoPlay])
 
+  // Sync the dubbed audio overlay with the video element.
+  // Video is muted when `hasDub` is true (see <video muted={hasDub} />),
+  // so only the dubbed audio is audible.
+  useEffect(() => {
+    const v = videoRef.current
+    const a = audioRef.current
+    if (!v || !a || !hasDub) return
+
+    const onPlay = () => {
+      a.currentTime = v.currentTime
+      a.play().catch(() => {
+        /* autoplay policy may reject until user gesture */
+      })
+    }
+    const onPause = () => a.pause()
+    const onSeeking = () => {
+      a.currentTime = v.currentTime
+    }
+    const onRateChange = () => {
+      a.playbackRate = v.playbackRate
+    }
+    // Drift-correction: if audio strays > 0.25s from video, resync
+    const onTimeUpdate = () => {
+      if (Math.abs(a.currentTime - v.currentTime) > 0.25) {
+        a.currentTime = v.currentTime
+      }
+    }
+
+    v.addEventListener('play', onPlay)
+    v.addEventListener('pause', onPause)
+    v.addEventListener('seeking', onSeeking)
+    v.addEventListener('ratechange', onRateChange)
+    v.addEventListener('timeupdate', onTimeUpdate)
+    return () => {
+      v.removeEventListener('play', onPlay)
+      v.removeEventListener('pause', onPause)
+      v.removeEventListener('seeking', onSeeking)
+      v.removeEventListener('ratechange', onRateChange)
+      v.removeEventListener('timeupdate', onTimeUpdate)
+    }
+  }, [hasDub, dubAudioUrl])
+
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!videoRef.current) return
     const rect = e.currentTarget.getBoundingClientRect()
@@ -277,7 +338,19 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
         autoPlay={autoPlay}
         preload="auto"
         playsInline
+        muted={hasDub}
       />
+
+      {/* Dubbed audio overlay (locale-specific). Synced to the video's
+          currentTime / play / pause / seek events via useEffect below. */}
+      {hasDub && dubAudioUrl && (
+        <audio
+          ref={audioRef}
+          src={dubAudioUrl}
+          preload="auto"
+          className="hidden"
+        />
+      )}
 
       {/* Buffering spinner overlay */}
       {buffering && (

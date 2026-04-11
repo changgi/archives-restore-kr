@@ -115,6 +115,7 @@ export interface RelatedVideo {
   created_at: string | null
   video_frames?: VideoFrame[]
   video_transcripts?: VideoTranscript[]
+  video_audio_tracks?: VideoAudioTrack[]
 }
 
 export interface VideoTranscript {
@@ -123,6 +124,22 @@ export interface VideoTranscript {
   start_seconds: number
   text: string
   sort_order: number | null
+  /** BCP-47 locale of this translation. 'ko' is the original. */
+  locale?: string
+  /** If this row is a translation, points to the original Korean row. */
+  source_id?: string | null
+}
+
+export interface VideoAudioTrack {
+  id: string
+  video_id: string
+  locale: string
+  audio_url: string
+  voice_name: string | null
+  duration_seconds: number | null
+  file_size_bytes: number | null
+  generated_at: string | null
+  created_at: string | null
 }
 
 export interface VideoFrame {

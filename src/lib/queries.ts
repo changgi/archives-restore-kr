@@ -254,12 +254,16 @@ export async function getOriginalDocuments(storyId: string): Promise<(OriginalDo
 export async function getRelatedVideos(): Promise<RelatedVideo[]> {
   const supabase = createServerClient()
 
+  // Pull ALL transcripts (every locale) + audio tracks. The client
+  // component picks the active locale at render time and falls back
+  // to Korean when a translation is missing.
   const { data, error } = await supabase
     .from('related_videos')
     .select(`
       *,
       video_frames ( * ),
-      video_transcripts ( * )
+      video_transcripts ( * ),
+      video_audio_tracks ( * )
     `)
     .order('title')
 
@@ -268,7 +272,6 @@ export async function getRelatedVideos(): Promise<RelatedVideo[]> {
     return []
   }
 
-  // Sort frames and transcripts within each video
   const videos = (data as unknown as RelatedVideo[]) || []
   videos.forEach((v) => {
     if (v.video_frames) {
@@ -276,7 +279,7 @@ export async function getRelatedVideos(): Promise<RelatedVideo[]> {
     }
     if (v.video_transcripts) {
       v.video_transcripts.sort(
-        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
       )
     }
   })
