@@ -667,9 +667,9 @@ export default function LearnClient({ videos }: LearnClientProps) {
             if (e.target === e.currentTarget) closeModal()
           }}
         >
-          <div className="min-h-full flex items-start justify-center p-2 sm:p-4 py-8">
+          <div className="min-h-full flex items-start justify-center sm:p-4 sm:py-8">
             <div
-              className="w-full max-w-7xl rounded-2xl overflow-hidden shadow-2xl relative"
+              className="w-full max-w-7xl sm:rounded-2xl overflow-hidden sm:shadow-2xl relative"
               style={{ backgroundColor: 'var(--color-bg-card)' }}
             >
               <button

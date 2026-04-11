@@ -250,7 +250,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
   }
 
   const player = (
-    <div className={`relative rounded-xl overflow-hidden bg-black ${modal ? 'w-full max-w-4xl' : 'w-full h-full'}`}>
+    <div className={`relative sm:rounded-xl overflow-hidden bg-black ${modal ? 'w-full max-w-4xl' : 'w-full h-full'}`}>
       {title && modal && (
         <div className="absolute top-0 left-0 right-0 z-20 p-4 bg-gradient-to-b from-black/80 to-transparent">
           <h3 className="text-white font-medium text-sm">{title}</h3>
