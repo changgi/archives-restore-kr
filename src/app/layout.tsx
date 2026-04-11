@@ -77,8 +77,19 @@ export default function RootLayout({
           color: 'var(--color-text)',
         }}
       >
+        {/* Skip-to-content link (keyboard accessibility) */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:font-bold focus:text-black"
+          style={{ backgroundColor: 'var(--color-gold)' }}
+        >
+          본문으로 건너뛰기
+        </a>
+
         <NavigationBar />
-        <main className="flex-1">{children}</main>
+        <main id="main-content" className="flex-1">
+          {children}
+        </main>
         <ScrollToTop />
 
         <footer

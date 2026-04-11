@@ -4,6 +4,7 @@ import { getCaseById, getRelatedCases, getAllCases } from '@/lib/queries'
 import ImageCompareSlider from '@/components/ImageCompareSlider'
 import RecordCard from '@/components/RecordCard'
 import Breadcrumbs from '@/components/Breadcrumbs'
+import ShareButton from '@/components/ShareButton'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -147,15 +148,20 @@ export default async function CaseDetailPage({ params }: PageProps) {
             {record.title}
           </h1>
 
-          {record.organizations?.name && (
-            <p
-              className="flex items-center gap-2 text-sm md:text-base"
-              style={{ color: 'var(--color-text-secondary)' }}
-            >
-              <Building2 size={16} style={{ color: 'var(--color-gold)' }} />
-              {record.organizations.name}
-            </p>
-          )}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            {record.organizations?.name ? (
+              <p
+                className="flex items-center gap-2 text-sm md:text-base"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
+                <Building2 size={16} style={{ color: 'var(--color-gold)' }} />
+                {record.organizations.name}
+              </p>
+            ) : (
+              <div />
+            )}
+            <ShareButton title={record.title} text={record.description || undefined} />
+          </div>
         </header>
 
         {/* Image Compare */}

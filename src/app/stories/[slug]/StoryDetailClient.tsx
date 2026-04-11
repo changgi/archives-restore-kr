@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowLeft, ArrowRight, ExternalLink, BookOpen, FileText } from 'lucide-react'
+import { ArrowRight, ExternalLink, BookOpen, FileText } from 'lucide-react'
 import type { FeaturedStory, OriginalDocument, DocumentPage } from '@/types'
 import ScrollProgress from '@/components/ScrollProgress'
 import ImageCompareSlider from '@/components/ImageCompareSlider'
@@ -10,6 +10,8 @@ import ItemGallery from '@/components/ItemGallery'
 import VideoPlayer from '@/components/VideoPlayer'
 import ExhibitionNav from '@/components/ExhibitionNav'
 import ParallaxSection from '@/components/ParallaxSection'
+import Breadcrumbs from '@/components/Breadcrumbs'
+import ShareButton from '@/components/ShareButton'
 
 interface StoryDetailClientProps {
   story: FeaturedStory
@@ -65,14 +67,15 @@ export default function StoryDetailClient({ story, prevStory, nextStory, origina
         className="min-h-screen flex items-center"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 w-full">
-          <Link
-            href="/stories"
-            className="inline-flex items-center gap-2 text-sm mb-8 transition-colors hover:text-[var(--color-gold)]"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            <ArrowLeft size={16} />
-            전시 목록으로
-          </Link>
+          <div className="flex items-center justify-between gap-4 mb-8">
+            <Breadcrumbs
+              items={[
+                { label: '기획전시', href: '/stories' },
+                { label: story.title },
+              ]}
+            />
+            <ShareButton title={story.title} text={story.subtitle || undefined} />
+          </div>
 
           <motion.div
             initial={{ opacity: 0, y: 50 }}
