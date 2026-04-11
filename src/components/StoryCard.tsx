@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowUpRight, Sparkles } from 'lucide-react'
 import type { FeaturedStory } from '@/types'
 
@@ -32,10 +33,12 @@ export default function StoryCard({ story, index }: StoryCardProps) {
         <div className="relative overflow-hidden" style={{ aspectRatio: '4/3' }}>
           {/* Before image */}
           {beforeImg && (
-            <img
+            <Image
               src={beforeImg}
               alt={`${story.title} 복원 전`}
-              className="absolute inset-0 w-full h-full object-cover transition-all duration-[900ms] ease-out"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-all duration-[900ms] ease-out"
               style={{
                 opacity: hovered ? 0 : 1,
                 transform: hovered ? 'scale(1.05)' : 'scale(1)',
@@ -45,10 +48,12 @@ export default function StoryCard({ story, index }: StoryCardProps) {
 
           {/* After image */}
           {afterImg && (
-            <img
+            <Image
               src={afterImg}
               alt={`${story.title} 복원 후`}
-              className="absolute inset-0 w-full h-full object-cover transition-all duration-[900ms] ease-out"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-all duration-[900ms] ease-out"
               style={{
                 opacity: hovered ? 1 : 0,
                 transform: hovered ? 'scale(1.05)' : 'scale(1.1)',

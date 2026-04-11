@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight, ArrowUpRight, Sparkles } from 'lucide-react'
 import type { FeaturedStory } from '@/types'
 
@@ -108,10 +109,12 @@ export default function HomeFeatured({ stories }: HomeFeaturedProps) {
               {/* Image stage with before/after crossfade */}
               <div className="relative aspect-[16/10] overflow-hidden bg-[var(--color-bg-secondary)]">
                 {story.before_image_url && (
-                  <img
+                  <Image
                     src={story.before_image_url}
                     alt={`${story.title} 복원 전`}
-                    className="absolute inset-0 w-full h-full object-cover transition-all duration-700"
+                    fill
+                    sizes="(max-width: 768px) 320px, 400px"
+                    className="object-cover transition-all duration-700"
                     style={{
                       opacity: isHovered ? 0 : 1,
                       transform: isHovered ? 'scale(1.05)' : 'scale(1)',
@@ -120,10 +123,12 @@ export default function HomeFeatured({ stories }: HomeFeaturedProps) {
                   />
                 )}
                 {story.after_image_url && (
-                  <img
+                  <Image
                     src={story.after_image_url}
                     alt={`${story.title} 복원 후`}
-                    className="absolute inset-0 w-full h-full object-cover transition-all duration-700"
+                    fill
+                    sizes="(max-width: 768px) 320px, 400px"
+                    className="object-cover transition-all duration-700"
                     style={{
                       opacity: isHovered ? 1 : 0,
                       transform: isHovered ? 'scale(1.05)' : 'scale(1)',

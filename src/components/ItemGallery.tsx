@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import NextImage from 'next/image'
 import {
   X,
   ExternalLink,
@@ -83,11 +84,12 @@ export default function ItemGallery({ items }: ItemGalleryProps) {
                 {/* Thumbnail */}
                 <div className="relative aspect-[4/3] overflow-hidden bg-[var(--color-bg-secondary)]">
                   {item.thumbnail_url ? (
-                    <img
+                    <NextImage
                       src={item.thumbnail_url}
                       alt={item.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.08]"
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-[1.08]"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">

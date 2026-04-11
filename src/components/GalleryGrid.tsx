@@ -87,11 +87,13 @@ export default function GalleryGrid({ images }: GalleryGridProps) {
                 className="relative rounded-xl overflow-hidden border transition-all duration-500 group-hover:shadow-[0_16px_40px_-16px_rgba(212,168,83,0.35)]"
                 style={{ borderColor: 'var(--color-border)' }}
               >
+                {/* Masonry layout needs intrinsic aspect ratios — keep native <img> for variable heights */}
                 <img
                   src={img.image_url}
                   alt={img.alt_text || img.caseTitle || '복원 이미지'}
                   className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                   loading="lazy"
+                  decoding="async"
                 />
 
                 {/* Top corner badge */}

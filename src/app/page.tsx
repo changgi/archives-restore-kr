@@ -3,6 +3,7 @@ import StatsCounter from '@/components/StatsCounter'
 import RecordCard from '@/components/RecordCard'
 import { getAllCases, getStats, getFeaturedStories, getRelatedVideos } from '@/lib/queries'
 import Link from 'next/link'
+import Image from 'next/image'
 import HomeFeatured from './HomeFeatured'
 import { Play, ArrowRight, Sparkles, Clock } from 'lucide-react'
 
@@ -215,10 +216,12 @@ export default async function HomePage() {
                 >
                   <div className="relative aspect-video overflow-hidden">
                     {v.thumbnail_url ? (
-                      <img
+                      <Image
                         src={v.thumbnail_url}
                         alt={v.title}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-[var(--color-gold)]/20 to-[var(--color-bg)] flex items-center justify-center">

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import type { FeaturedStory } from '@/types'
 
@@ -28,10 +29,12 @@ function ExhibitionCard({
       {/* Background image with parallax zoom */}
       {bgImage && (
         <div className="absolute inset-0 overflow-hidden">
-          <img
+          <Image
             src={bgImage}
             alt={story.title}
-            className="w-full h-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-110"
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-110"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30" />
           <div
