@@ -4,6 +4,7 @@ import { Archive, ExternalLink } from 'lucide-react'
 import './globals.css'
 import NavigationBar from '@/components/NavigationBar'
 import ScrollToTop from '@/components/ScrollToTop'
+import JsonLd from '@/components/JsonLd'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://projectrestore.vercel.app'),
@@ -68,6 +69,22 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const BASE_URL = 'https://projectrestore.vercel.app'
+  const websiteLd = {
+    '@type': 'WebSite',
+    name: '기록유산 복원 아카이브',
+    alternateName: 'Archives Restoration Korea',
+    url: BASE_URL,
+    inLanguage: 'ko',
+    description:
+      '국가기록원 기록물 복원 사업의 전과 후를 기록하는 디지털 아카이브',
+    publisher: {
+      '@type': 'Organization',
+      name: 'Archives Restoration Korea',
+      url: BASE_URL,
+    },
+  }
+
   return (
     <html lang="ko" className="h-full antialiased" suppressHydrationWarning>
       <body
@@ -77,6 +94,8 @@ export default function RootLayout({
           color: 'var(--color-text)',
         }}
       >
+        <JsonLd data={websiteLd} />
+
         {/* Skip-to-content link (keyboard accessibility) */}
         <a
           href="#main-content"

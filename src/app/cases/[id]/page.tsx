@@ -5,6 +5,7 @@ import ImageCompareSlider from '@/components/ImageCompareSlider'
 import RecordCard from '@/components/RecordCard'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import ShareButton from '@/components/ShareButton'
+import JsonLd from '@/components/JsonLd'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -87,8 +88,61 @@ export default async function CaseDetailPage({ params }: PageProps) {
       ? allCases[currentIdx + 1]
       : null
 
+  const BASE_URL = 'https://projectrestore.vercel.app'
+  const pageUrl = `${BASE_URL}/cases/${record.id}`
+  const ogImage = afterImage?.image_url || beforeImage?.image_url
+
+  // JSON-LD CreativeWork schema — a restoration case best maps to
+  // a CreativeWork with an AggregateRating optionally. Using 'Article'
+  // pattern with associatedMedia for the before/after images.
+  const creativeWorkLd = {
+    '@type': 'CreativeWork',
+    name: record.title,
+    description: record.description?.slice(0, 500) || `${record.title} - 국가기록원 기록물 복원 사례`,
+    url: pageUrl,
+    inLanguage: 'ko',
+    ...(record.support_year && { dateCreated: `${record.support_year}` }),
+    ...(record.organizations?.name && {
+      contributor: {
+        '@type': 'Organization',
+        name: record.organizations.name,
+      },
+    }),
+    ...(ogImage && { image: ogImage }),
+    ...(record.case_images && record.case_images.length > 0 && {
+      associatedMedia: record.case_images.map((img) => ({
+        '@type': 'ImageObject',
+        contentUrl: img.image_url,
+        description: img.image_type === 'before' ? '복원 전' : '복원 후',
+      })),
+    }),
+    isPartOf: {
+      '@type': 'WebSite',
+      name: '기록유산 복원 아카이브',
+      url: BASE_URL,
+    },
+    provider: {
+      '@type': 'GovernmentOrganization',
+      name: '국가기록원',
+      url: 'https://www.archives.go.kr',
+    },
+  }
+
+  const breadcrumbLd = {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: '홈', item: BASE_URL },
+      { '@type': 'ListItem', position: 2, name: '복원 사례', item: `${BASE_URL}/cases` },
+      { '@type': 'ListItem', position: 3, name: categoryLabel, item: `${BASE_URL}/cases?category=${record.category}` },
+      { '@type': 'ListItem', position: 4, name: record.title, item: pageUrl },
+    ],
+  }
+
   return (
     <div className="pt-24 pb-24">
+      <JsonLd data={creativeWorkLd} />
+      <JsonLd data={breadcrumbLd} />
+
       {/* Breadcrumbs bar */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
         <Breadcrumbs
