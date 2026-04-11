@@ -5,6 +5,7 @@ import { Play, X, Check, Clock, List, FileText, AlignLeft, Loader2 } from 'lucid
 import type { RelatedVideo, VideoFrame, VideoTranscript } from '@/types'
 import VideoPlayer, { type VideoPlayerHandle } from '@/components/VideoPlayer'
 import PageHeader from '@/components/PageHeader'
+import VideoDub from '@/components/VideoDub'
 import { useT, useLocale } from '@/i18n/LanguageProvider'
 import type { LucideIcon } from 'lucide-react'
 
@@ -83,13 +84,14 @@ const TimelineTab = memo(function TimelineTab({
   activeIdx: number
   onSeek: (seconds: number) => void
 }) {
+  const t = useT()
   if (!frames.length || !duration) {
     return (
       <p
         className="text-xs text-center py-8"
         style={{ color: 'var(--color-text-muted)' }}
       >
-        타임라인 정보가 없습니다
+        {t.learn?.noTimeline ?? '타임라인 정보가 없습니다'}
       </p>
     )
   }
@@ -165,6 +167,7 @@ const TranscriptTab = memo(function TranscriptTab({
   activeIdx: number
   onSeek: (seconds: number) => void
 }) {
+  const tr = useT()
   const containerRef = useRef<HTMLDivElement>(null)
   // Block auto-scroll for a window after user clicks a line, so the
   // layout doesn't shift under their cursor and steal subsequent clicks.
@@ -207,7 +210,7 @@ const TranscriptTab = memo(function TranscriptTab({
         className="text-xs text-center py-8"
         style={{ color: 'var(--color-text-muted)' }}
       >
-        스크립트가 없습니다
+        {tr.learn?.noTranscript ?? '스크립트가 없습니다'}
       </p>
     )
   }
@@ -267,6 +270,7 @@ const RelatedTab = memo(function RelatedTab({
   currentVideoId: string | null
   onSelect: (v: RelatedVideo) => void
 }) {
+  const tr = useT()
   const [pendingId, setPendingId] = useState<string | null>(null)
 
   // Clear the pending state once the parent has actually switched
@@ -336,7 +340,9 @@ const RelatedTab = memo(function RelatedTab({
                     style={{ backgroundColor: 'var(--color-gold)' }}
                   >
                     <Play size={10} className="text-black" fill="currentColor" />
-                    <span className="text-[9px] font-bold text-black">재생 중</span>
+                    <span className="text-[9px] font-bold text-black">
+                      {tr.learn?.playingBadge ?? '재생 중'}
+                    </span>
                   </div>
                 </div>
               )}
@@ -362,9 +368,9 @@ const RelatedTab = memo(function RelatedTab({
                 style={{ color: 'var(--color-text-muted)' }}
               >
                 {isPending
-                  ? '재생 준비 중...'
+                  ? tr.learn?.loadingVideo ?? '재생 준비 중...'
                   : isCurrent
-                  ? '현재 재생 중인 영상입니다'
+                  ? tr.learn?.currentlyPlaying ?? '현재 재생 중인 영상입니다'
                   : v.summary}
               </p>
             </div>
@@ -518,6 +524,13 @@ export default function LearnClient({ videos }: LearnClientProps) {
   const [activeChapterIdx, setActiveChapterIdx] = useState(-1)
   const [activeTranscriptIdx, setActiveTranscriptIdx] = useState(-1)
   const playerRef = useRef<VideoPlayerHandle>(null)
+  // Captured <video> element ref for the VideoDub component.
+  // Populated after the player mounts via playerRef.getVideoElement().
+  const [dubVideoEl, setDubVideoEl] = useState<HTMLVideoElement | null>(null)
+  const dubVideoRef = useRef<HTMLVideoElement | null>(null)
+  useEffect(() => {
+    dubVideoRef.current = dubVideoEl
+  }, [dubVideoEl])
   const lastUpdateRef = useRef(0)
   // Suppress auto-update for a moment after user click so the throttled
   // time-update callback doesn't overwrite the immediate selection.
@@ -758,7 +771,17 @@ export default function LearnClient({ videos }: LearnClientProps) {
                   <div className="flex-1 min-w-0">
                     <div className="bg-black">
                       <VideoPlayer
-                        ref={playerRef}
+                        ref={(h) => {
+                          playerRef.current = h
+                          // Capture the inner <video> element once it's mounted.
+                          // Uses a microtask to wait for useImperativeHandle.
+                          if (h) {
+                            queueMicrotask(() => {
+                              const v = h.getVideoElement()
+                              if (v && v !== dubVideoEl) setDubVideoEl(v)
+                            })
+                          }
+                        }}
                         key={activeVideo.id + ':' + locale}
                         src={activeVideo.video_url}
                         hdSrc={activeVideo.hd_video_url}
@@ -774,6 +797,20 @@ export default function LearnClient({ videos }: LearnClientProps) {
                         }
                         onTimeChange={handleTimeChange}
                       />
+                      {/* Client-side voice dub via Web Speech API — works in
+                          all 13 locales when the video plays in a non-Korean
+                          locale and no pre-generated dub audio track exists. */}
+                      {locale !== 'ko' &&
+                        dubVideoEl &&
+                        !activeVideo.video_audio_tracks?.find(
+                          (a) => a.locale === locale,
+                        ) && (
+                          <VideoDub
+                            key={activeVideo.id + ':dub:' + locale}
+                            videoRef={dubVideoRef}
+                            transcripts={activeVideo.video_transcripts ?? []}
+                          />
+                        )}
                     </div>
                     <div className="p-5 md:p-6">
                       <h2 className="text-xl md:text-2xl font-bold mb-2">

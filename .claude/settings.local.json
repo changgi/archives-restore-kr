@@ -74,7 +74,8 @@
       "Bash(npx next:*)",
       "Bash(grep -v \"^$\")",
       "Bash(node -e \"const fs=require\\('fs'\\);const p='src/app/layout.tsx';let c=fs.readFileSync\\(p,'utf8'\\);const startMarker='        <Analytics />\\\\n        <SpeedInsights />\\\\n\\\\n        <footer';const endMarker='        </footer>\\\\n      </body>';const start=c.indexOf\\(startMarker\\);const end=c.indexOf\\(endMarker\\);if\\(start<0||end<0\\){console.error\\('markers not found', start, end\\);process.exit\\(1\\);}const keep='        <Analytics />\\\\n        <SpeedInsights />\\\\n      </body>';c=c.slice\\(0,start\\)+keep+c.slice\\(end+endMarker.length\\);fs.writeFileSync\\(p,c\\);console.log\\('removed footer block, new size:', c.split\\('\\\\n'\\).length,'lines'\\)\")",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(node scripts/add_learn_about.mjs)"
     ]
   }
 }

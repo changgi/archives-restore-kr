@@ -26,6 +26,8 @@ export interface VideoPlayerHandle {
   seekTo: (seconds: number) => void
   play: () => void
   pause: () => void
+  /** Expose the underlying <video> element for features like VideoDub */
+  getVideoElement: () => HTMLVideoElement | null
 }
 
 const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function VideoPlayer(
@@ -135,6 +137,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(function Vid
       videoRef.current?.pause()
       setPlaying(false)
     },
+    getVideoElement: () => videoRef.current,
   }))
 
   const togglePlay = useCallback(() => {

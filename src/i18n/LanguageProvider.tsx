@@ -17,6 +17,7 @@ import {
 } from './config'
 import type { Messages } from './types'
 import { messages } from './messages'
+import AutoTranslate from './AutoTranslate'
 
 const STORAGE_KEY = 'restore.locale'
 const COOKIE_NAME = 'restore_locale'
@@ -116,7 +117,10 @@ export default function LanguageProvider({ children }: LanguageProviderProps) {
   }
 
   return (
-    <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
+    <LanguageContext.Provider value={value}>
+      {children}
+      {hydrated && <AutoTranslate />}
+    </LanguageContext.Provider>
   )
 }
 
