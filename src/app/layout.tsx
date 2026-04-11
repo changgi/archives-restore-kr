@@ -5,13 +5,25 @@ import './globals.css'
 import NavigationBar from '@/components/NavigationBar'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://projectrestore.vercel.app'),
   title: {
     default: '기록유산 복원 아카이브',
     template: '%s | 기록유산 복원 아카이브',
   },
   description:
     '국가기록원 기록물 복원 사업의 전과 후를 기록하는 디지털 아카이브. 종이류, 시청각 기록물의 복원 사례를 확인하세요.',
-  keywords: ['기록물 복원', '국가기록원', '문화재', '아카이브', '보존', '복원'],
+  keywords: [
+    '기록물 복원',
+    '국가기록원',
+    '문화재',
+    '아카이브',
+    '보존',
+    '복원',
+    '디지털 아카이브',
+    '복원 전후',
+  ],
+  authors: [{ name: 'Archives Restoration Korea' }],
+  creator: 'Archives Restoration Korea',
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
@@ -19,6 +31,21 @@ export const metadata: Metadata = {
     title: '기록유산 복원 아카이브',
     description:
       '국가기록원 기록물 복원 사업의 전과 후를 기록하는 디지털 아카이브',
+    url: '/',
+  },
+  twitter: {
+    card: 'summary',
+    title: '기록유산 복원 아카이브',
+    description:
+      '국가기록원 기록물 복원 사업의 전과 후를 기록하는 디지털 아카이브',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
   },
 }
 

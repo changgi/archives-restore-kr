@@ -22,9 +22,39 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params
   const record = await getCaseById(id)
   if (!record) return { title: '사례를 찾을 수 없습니다' }
+
+  const description =
+    record.description?.slice(0, 160) ||
+    `${record.title} - 국가기록원 기록물 복원 사례`
+
+  const afterImg = record.case_images?.find((img) => img.image_type === 'after')
+  const beforeImg = record.case_images?.find((img) => img.image_type === 'before')
+  const ogImageUrl = afterImg?.image_url || beforeImg?.image_url
+
   return {
     title: record.title,
-    description: record.description || `${record.title} - 기록물 복원 사례`,
+    description,
+    openGraph: {
+      title: record.title,
+      description,
+      type: 'article',
+      locale: 'ko_KR',
+      siteName: '기록유산 복원 아카이브',
+      ...(ogImageUrl && {
+        images: [
+          {
+            url: ogImageUrl,
+            alt: record.title,
+          },
+        ],
+      }),
+    },
+    twitter: {
+      card: ogImageUrl ? 'summary_large_image' : 'summary',
+      title: record.title,
+      description,
+      ...(ogImageUrl && { images: [ogImageUrl] }),
+    },
   }
 }
 
