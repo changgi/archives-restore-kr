@@ -66,7 +66,8 @@
       "Bash(python fine_ocr.py 3 4)",
       "Bash(python fine_ocr.py 6 8)",
       "Bash(npx tsc:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(ls src/app/sitemap.* src/app/robots.*)"
     ]
   }
 }

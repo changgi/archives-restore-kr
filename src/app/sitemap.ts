@@ -1,26 +1,56 @@
 import type { MetadataRoute } from 'next'
-import { createServerClient } from '@/lib/supabase'
+import { getAllCases, getFeaturedStories } from '@/lib/queries'
+
+const BASE_URL = 'https://projectrestore.vercel.app'
+
+export const dynamic = 'force-dynamic'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const supabase = createServerClient()
-  const { data: cases } = await supabase.from('restoration_cases').select('id, updated_at')
+  const now = new Date()
 
-  const baseUrl = 'https://project-restore.vercel.app'
-
-  const staticPages: MetadataRoute.Sitemap = [
-    { url: baseUrl, lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },
-    { url: `${baseUrl}/cases`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
-    { url: `${baseUrl}/timeline`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${baseUrl}/gallery`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${baseUrl}/about`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+  const staticRoutes: MetadataRoute.Sitemap = [
+    { url: `${BASE_URL}/`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
+    { url: `${BASE_URL}/cases`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${BASE_URL}/stories`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${BASE_URL}/learn`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE_URL}/timeline`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/gallery`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/about`, lastModified: now, changeFrequency: 'yearly', priority: 0.5 },
   ]
 
-  const casePages: MetadataRoute.Sitemap = (cases || []).map((c) => ({
-    url: `${baseUrl}/cases/${c.id}`,
-    lastModified: c.updated_at ? new Date(c.updated_at) : new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.8,
-  }))
+  let caseRoutes: MetadataRoute.Sitemap = []
+  let storyRoutes: MetadataRoute.Sitemap = []
 
-  return [...staticPages, ...casePages]
+  try {
+    const [cases, stories] = await Promise.all([
+      getAllCases(),
+      getFeaturedStories(),
+    ])
+
+    caseRoutes = cases.map((c) => ({
+      url: `${BASE_URL}/cases/${c.id}`,
+      lastModified: c.updated_at ? new Date(c.updated_at) : now,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    }))
+
+    storyRoutes = stories.flatMap((s) => [
+      {
+        url: `${BASE_URL}/stories/${s.slug}`,
+        lastModified: now,
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+      },
+      {
+        url: `${BASE_URL}/stories/${s.slug}/documents`,
+        lastModified: now,
+        changeFrequency: 'monthly' as const,
+        priority: 0.5,
+      },
+    ])
+  } catch {
+    // fall back to static routes only
+  }
+
+  return [...staticRoutes, ...caseRoutes, ...storyRoutes]
 }
