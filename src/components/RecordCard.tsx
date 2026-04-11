@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Building2, Calendar, ArrowUpRight, FileImage, Film } from 'lucide-react'
 import type { RestorationCase } from '@/types'
 
@@ -37,11 +38,13 @@ export default function RecordCard({ record, index = 0 }: RecordCardProps) {
         {/* Image area */}
         <div className="relative aspect-[4/3] overflow-hidden bg-[var(--color-bg-secondary)]">
           {displayImage ? (
-            <img
+            <Image
               src={displayImage.image_url}
               alt={displayImage.alt_text || record.title}
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.08]"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-700 group-hover:scale-[1.08]"
+              unoptimized={false}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[var(--color-text-muted)]">

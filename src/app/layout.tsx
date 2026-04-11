@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Archive, ExternalLink } from 'lucide-react'
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 import NavigationBar from '@/components/NavigationBar'
 import ScrollToTop from '@/components/ScrollToTop'
@@ -119,6 +121,8 @@ export default function RootLayout({
         </main>
         <ScrollToTop />
         <KeyboardShortcuts />
+        <Analytics />
+        <SpeedInsights />
 
         <footer
           className="relative mt-auto border-t overflow-hidden"

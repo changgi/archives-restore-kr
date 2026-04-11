@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { ArrowLeft, Search, Home } from 'lucide-react'
+import { Search, Home } from 'lucide-react'
+import SmartBackButton from '@/components/SmartBackButton'
 
 export default function NotFound() {
   return (
@@ -84,22 +85,23 @@ export default function NotFound() {
           </Link>
         </div>
 
-        {/* Back link */}
-        <div className="mt-10 pt-8 border-t inline-block"
+        {/* Back link + About link */}
+        <div
+          className="mt-10 pt-8 border-t inline-flex items-center gap-6"
           style={{ borderColor: 'var(--color-border)' }}
         >
-          <p
-            className="text-xs tracking-[0.2em] uppercase"
+          <SmartBackButton fallbackHref="/" label="이전 페이지" />
+          <span
+            className="h-4 w-px"
+            style={{ backgroundColor: 'var(--color-border)' }}
+          />
+          <Link
+            href="/about"
+            className="text-xs tracking-[0.2em] uppercase inline-flex items-center gap-1.5 hover:text-[var(--color-gold)] transition-colors"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            <Link
-              href="/about"
-              className="inline-flex items-center gap-1.5 hover:text-[var(--color-gold)] transition-colors"
-            >
-              <ArrowLeft size={12} />
-              프로젝트 소개
-            </Link>
-          </p>
+            프로젝트 소개
+          </Link>
         </div>
       </div>
     </div>
