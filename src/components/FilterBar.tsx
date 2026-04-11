@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
-import { X } from 'lucide-react'
+import { X, SlidersHorizontal, Tag, Calendar, Building2, FileImage, Film } from 'lucide-react'
 import type { Organization } from '@/types'
 
 interface FilterBarProps {
@@ -26,90 +26,238 @@ export default function FilterBar({ organizations, years }: FilterBarProps) {
       } else {
         params.delete(key)
       }
-      router.push(`/cases?${params.toString()}`)
+      const qs = params.toString()
+      router.push(qs ? `/cases?${qs}` : '/cases')
     },
-    [router, searchParams]
+    [router, searchParams],
   )
 
   const clearFilters = useCallback(() => {
-    router.push('/cases')
-  }, [router])
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('category')
+    params.delete('year')
+    params.delete('organization')
+    const qs = params.toString()
+    router.push(qs ? `/cases?${qs}` : '/cases')
+  }, [router, searchParams])
 
-  const hasActiveFilters = currentCategory !== 'all' || currentYear || currentOrg
+  const hasActiveFilters =
+    currentCategory !== 'all' || currentYear || currentOrg
+
+  const selectStyle: React.CSSProperties = {
+    backgroundColor: 'var(--color-bg)',
+    borderColor: 'var(--color-border)',
+    color: 'var(--color-text)',
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
-        {/* Category filter */}
-        <select
-          value={currentCategory}
-          onChange={(e) => updateFilter('category', e.target.value)}
-          className="px-3 py-2 rounded-lg text-sm border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-gold)]"
+    <div className="space-y-3">
+      {/* Label row */}
+      <div className="flex items-center justify-between">
+        <div
+          className="flex items-center gap-2 text-[10px] tracking-[0.25em] uppercase font-medium"
+          style={{ color: 'var(--color-gold)' }}
         >
-          <option value="all">전체 유형</option>
-          <option value="paper">종이류</option>
-          <option value="audiovisual">시청각</option>
-        </select>
-
-        {/* Year filter */}
-        <select
-          value={currentYear}
-          onChange={(e) => updateFilter('year', e.target.value)}
-          className="px-3 py-2 rounded-lg text-sm border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-gold)]"
-        >
-          <option value="">전체 연도</option>
-          {years.map((y) => (
-            <option key={y} value={y}>{y}년</option>
-          ))}
-        </select>
-
-        {/* Organization filter */}
-        <select
-          value={currentOrg}
-          onChange={(e) => updateFilter('organization', e.target.value)}
-          className="px-3 py-2 rounded-lg text-sm border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-gold)] max-w-[200px]"
-        >
-          <option value="">전체 기관</option>
-          {organizations.map((org) => (
-            <option key={org.id} value={org.id}>{org.name}</option>
-          ))}
-        </select>
-
+          <SlidersHorizontal size={12} />
+          <span>Filters</span>
+        </div>
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm border border-[var(--color-red)] text-[var(--color-red)] hover:bg-[var(--color-red)]/10 transition-colors"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors hover:bg-[var(--color-red)]/5"
+            style={{
+              borderColor: 'rgba(197, 48, 48, 0.4)',
+              color: 'var(--color-red)',
+            }}
           >
-            <X size={14} />
-            초기화
+            <X size={11} />
+            <span>초기화</span>
           </button>
         )}
       </div>
 
+      {/* Filter controls */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        {/* Category */}
+        <label
+          className="relative flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors hover:border-[var(--color-border-hover)]"
+          style={{
+            backgroundColor: 'var(--color-bg)',
+            borderColor:
+              currentCategory !== 'all'
+                ? 'rgba(212, 168, 83, 0.5)'
+                : 'var(--color-border)',
+          }}
+        >
+          {currentCategory === 'paper' ? (
+            <FileImage
+              size={14}
+              className="flex-shrink-0"
+              style={{ color: 'var(--color-gold)' }}
+            />
+          ) : currentCategory === 'audiovisual' ? (
+            <Film
+              size={14}
+              className="flex-shrink-0"
+              style={{ color: 'var(--color-gold)' }}
+            />
+          ) : (
+            <Tag
+              size={14}
+              className="flex-shrink-0"
+              style={{ color: 'var(--color-text-muted)' }}
+            />
+          )}
+          <select
+            value={currentCategory}
+            onChange={(e) => updateFilter('category', e.target.value)}
+            className="flex-1 bg-transparent text-sm focus:outline-none appearance-none cursor-pointer"
+            style={{ color: 'var(--color-text)' }}
+          >
+            <option value="all" style={selectStyle}>
+              전체 유형
+            </option>
+            <option value="paper" style={selectStyle}>
+              종이류
+            </option>
+            <option value="audiovisual" style={selectStyle}>
+              시청각
+            </option>
+          </select>
+        </label>
+
+        {/* Year */}
+        <label
+          className="relative flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors hover:border-[var(--color-border-hover)]"
+          style={{
+            backgroundColor: 'var(--color-bg)',
+            borderColor: currentYear
+              ? 'rgba(212, 168, 83, 0.5)'
+              : 'var(--color-border)',
+          }}
+        >
+          <Calendar
+            size={14}
+            className="flex-shrink-0"
+            style={{
+              color: currentYear
+                ? 'var(--color-gold)'
+                : 'var(--color-text-muted)',
+            }}
+          />
+          <select
+            value={currentYear}
+            onChange={(e) => updateFilter('year', e.target.value)}
+            className="flex-1 bg-transparent text-sm focus:outline-none appearance-none cursor-pointer"
+            style={{ color: 'var(--color-text)' }}
+          >
+            <option value="" style={selectStyle}>
+              전체 연도
+            </option>
+            {years.map((y) => (
+              <option key={y} value={y} style={selectStyle}>
+                {y}년
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/* Organization */}
+        <label
+          className="relative flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors hover:border-[var(--color-border-hover)]"
+          style={{
+            backgroundColor: 'var(--color-bg)',
+            borderColor: currentOrg
+              ? 'rgba(212, 168, 83, 0.5)'
+              : 'var(--color-border)',
+          }}
+        >
+          <Building2
+            size={14}
+            className="flex-shrink-0"
+            style={{
+              color: currentOrg
+                ? 'var(--color-gold)'
+                : 'var(--color-text-muted)',
+            }}
+          />
+          <select
+            value={currentOrg}
+            onChange={(e) => updateFilter('organization', e.target.value)}
+            className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none appearance-none cursor-pointer truncate"
+            style={{ color: 'var(--color-text)' }}
+          >
+            <option value="" style={selectStyle}>
+              전체 기관
+            </option>
+            {organizations.map((org) => (
+              <option key={org.id} value={org.id} style={selectStyle}>
+                {org.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {/* Active filter badges */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5 pt-1">
           {currentCategory !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-[var(--color-gold)]/10 text-[var(--color-gold)] border border-[var(--color-gold)]/20">
-              {currentCategory === 'paper' ? '종이류' : '시청각'}
-              <button onClick={() => updateFilter('category', 'all')}>
-                <X size={12} />
+            <span
+              className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium border"
+              style={{
+                backgroundColor: 'rgba(212, 168, 83, 0.08)',
+                borderColor: 'rgba(212, 168, 83, 0.3)',
+                color: 'var(--color-gold)',
+              }}
+            >
+              <span>{currentCategory === 'paper' ? '종이류' : '시청각'}</span>
+              <button
+                onClick={() => updateFilter('category', 'all')}
+                className="p-0.5 rounded-full hover:bg-[var(--color-gold)]/10"
+                aria-label="유형 필터 제거"
+              >
+                <X size={10} />
               </button>
             </span>
           )}
           {currentYear && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-[var(--color-gold)]/10 text-[var(--color-gold)] border border-[var(--color-gold)]/20">
-              {currentYear}년
-              <button onClick={() => updateFilter('year', '')}>
-                <X size={12} />
+            <span
+              className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium border"
+              style={{
+                backgroundColor: 'rgba(212, 168, 83, 0.08)',
+                borderColor: 'rgba(212, 168, 83, 0.3)',
+                color: 'var(--color-gold)',
+              }}
+            >
+              <span>{currentYear}년</span>
+              <button
+                onClick={() => updateFilter('year', '')}
+                className="p-0.5 rounded-full hover:bg-[var(--color-gold)]/10"
+                aria-label="연도 필터 제거"
+              >
+                <X size={10} />
               </button>
             </span>
           )}
           {currentOrg && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-[var(--color-gold)]/10 text-[var(--color-gold)] border border-[var(--color-gold)]/20">
-              {organizations.find((o) => o.id === currentOrg)?.name || '기관'}
-              <button onClick={() => updateFilter('organization', '')}>
-                <X size={12} />
+            <span
+              className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium border max-w-full"
+              style={{
+                backgroundColor: 'rgba(212, 168, 83, 0.08)',
+                borderColor: 'rgba(212, 168, 83, 0.3)',
+                color: 'var(--color-gold)',
+              }}
+            >
+              <span className="truncate">
+                {organizations.find((o) => o.id === currentOrg)?.name || '기관'}
+              </span>
+              <button
+                onClick={() => updateFilter('organization', '')}
+                className="p-0.5 rounded-full hover:bg-[var(--color-gold)]/10 flex-shrink-0"
+                aria-label="기관 필터 제거"
+              >
+                <X size={10} />
               </button>
             </span>
           )}

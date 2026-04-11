@@ -10,6 +10,7 @@ export default function SearchBar() {
   const [query, setQuery] = useState(searchParams.get('search') || '')
   const [isFocused, setIsFocused] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const updateSearch = useCallback(
     (value: string) => {
@@ -19,9 +20,10 @@ export default function SearchBar() {
       } else {
         params.delete('search')
       }
-      router.push(`/cases?${params.toString()}`)
+      const qs = params.toString()
+      router.push(qs ? `/cases?${qs}` : '/cases')
     },
-    [router, searchParams]
+    [router, searchParams],
   )
 
   useEffect(() => {
@@ -37,39 +39,63 @@ export default function SearchBar() {
   const clearSearch = () => {
     setQuery('')
     updateSearch('')
+    inputRef.current?.focus()
   }
 
   return (
-    <div
-      className={`relative flex items-center rounded-xl border transition-all duration-300 ${
+    <label
+      className={`group relative flex items-center rounded-xl border transition-all duration-300 ${
         isFocused
-          ? 'border-[var(--color-gold)] shadow-[0_0_0_2px_rgba(212,168,83,0.15)]'
-          : 'border-[var(--color-border)]'
+          ? 'shadow-[0_0_0_3px_rgba(212,168,83,0.12)]'
+          : 'hover:border-[var(--color-border-hover)]'
       }`}
-      style={{ backgroundColor: 'var(--color-bg-card)' }}
+      style={{
+        backgroundColor: 'var(--color-bg)',
+        borderColor: isFocused
+          ? 'var(--color-gold)'
+          : 'var(--color-border)',
+      }}
     >
-      <Search
-        size={18}
-        className="absolute left-3"
-        style={{ color: isFocused ? 'var(--color-gold)' : 'var(--color-text-muted)' }}
-      />
+      <div
+        className="flex items-center justify-center w-12 flex-shrink-0 transition-colors"
+        style={{
+          color: isFocused ? 'var(--color-gold)' : 'var(--color-text-muted)',
+        }}
+      >
+        <Search size={18} />
+      </div>
       <input
+        ref={inputRef}
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        placeholder="복원 사례 검색..."
-        className="w-full pl-10 pr-10 py-3 bg-transparent text-[var(--color-text)] text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none"
+        placeholder="제목, 내용, 기관명으로 검색..."
+        className="flex-1 pr-3 py-3.5 bg-transparent text-sm placeholder:text-[var(--color-text-muted)] focus:outline-none"
+        style={{ color: 'var(--color-text)' }}
       />
       {query && (
         <button
+          type="button"
           onClick={clearSearch}
-          className="absolute right-3 p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors"
+          className="mr-2 p-1.5 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
+          aria-label="검색어 지우기"
         >
-          <X size={16} style={{ color: 'var(--color-text-muted)' }} />
+          <X size={14} style={{ color: 'var(--color-text-muted)' }} />
         </button>
       )}
-    </div>
+      {!query && (
+        <kbd
+          className="hidden sm:inline-flex mr-3 items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono tracking-wider border opacity-50"
+          style={{
+            borderColor: 'var(--color-border)',
+            color: 'var(--color-text-muted)',
+          }}
+        >
+          검색
+        </kbd>
+      )}
+    </label>
   )
 }

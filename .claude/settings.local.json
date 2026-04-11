@@ -65,7 +65,8 @@
       "Bash(python v5_process.py)",
       "Bash(python fine_ocr.py 3 4)",
       "Bash(python fine_ocr.py 6 8)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git push:*)"
     ]
   }
 }
