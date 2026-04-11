@@ -1,8 +1,7 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import type { FeaturedStory } from '@/types'
 
 interface ExhibitionNavProps {
@@ -10,40 +9,110 @@ interface ExhibitionNavProps {
   next: FeaturedStory | null
 }
 
-function MiniCard({ story, direction }: { story: FeaturedStory; direction: 'prev' | 'next' }) {
+function ExhibitionCard({
+  story,
+  direction,
+}: {
+  story: FeaturedStory
+  direction: 'prev' | 'next'
+}) {
   const isPrev = direction === 'prev'
+  const bgImage = story.after_image_url || story.before_image_url
 
   return (
     <Link
       href={`/stories/${story.slug}`}
-      className="group flex items-center gap-4 p-4 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-gold)]/50 transition-all"
+      className="group relative block overflow-hidden rounded-2xl border border-[var(--color-border)] hover:border-[var(--color-gold)]/60 transition-all duration-500 h-64"
       style={{ backgroundColor: 'var(--color-bg-card)' }}
     >
-      {isPrev && (
-        <ChevronLeft size={20} className="text-[var(--color-text-muted)] group-hover:text-[var(--color-gold)] transition-colors flex-shrink-0" />
+      {/* Background image with parallax zoom */}
+      {bgImage && (
+        <div className="absolute inset-0 overflow-hidden">
+          <img
+            src={bgImage}
+            alt={story.title}
+            className="w-full h-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-110"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30" />
+          <div
+            className={`absolute inset-0 bg-gradient-to-${isPrev ? 'r' : 'l'} from-black/50 to-transparent`}
+          />
+        </div>
       )}
 
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        {story.before_image_url && (
-          <img
-            src={story.before_image_url}
-            alt={story.title}
-            className="w-16 h-12 object-cover rounded-lg flex-shrink-0"
+      {/* Direction arrow indicator */}
+      <div
+        className={`absolute top-5 ${
+          isPrev ? 'left-5' : 'right-5'
+        } w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500`}
+        style={{
+          backgroundColor: 'rgba(212, 168, 83, 0.15)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(212, 168, 83, 0.3)',
+        }}
+      >
+        {isPrev ? (
+          <ChevronLeft
+            size={20}
+            className="text-[var(--color-gold)] transition-transform duration-500 group-hover:-translate-x-0.5"
+          />
+        ) : (
+          <ChevronRight
+            size={20}
+            className="text-[var(--color-gold)] transition-transform duration-500 group-hover:translate-x-0.5"
           />
         )}
-        <div className={`min-w-0 ${isPrev ? 'text-left' : 'text-right'}`}>
-          <p className="text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>
-            {isPrev ? '이전 전시' : '다음 전시'}
-          </p>
-          <p className="text-sm font-medium truncate group-hover:text-[var(--color-gold)] transition-colors">
-            {story.title}
-          </p>
-        </div>
       </div>
 
-      {!isPrev && (
-        <ChevronRight size={20} className="text-[var(--color-text-muted)] group-hover:text-[var(--color-gold)] transition-colors flex-shrink-0" />
-      )}
+      {/* Label tag */}
+      <div
+        className={`absolute top-5 ${isPrev ? 'right-5' : 'left-5'}`}
+      >
+        <span
+          className="inline-block px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.2em] uppercase"
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            color: 'var(--color-gold)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(212, 168, 83, 0.3)',
+          }}
+        >
+          {isPrev ? '이전 전시' : '다음 전시'}
+        </span>
+      </div>
+
+      {/* Content at bottom */}
+      <div
+        className={`absolute bottom-0 left-0 right-0 p-6 ${
+          isPrev ? 'text-left' : 'text-right'
+        }`}
+      >
+        {story.production_period && (
+          <p
+            className="text-xs font-mono mb-2 opacity-70"
+            style={{ color: 'var(--color-gold)' }}
+          >
+            {story.production_period}
+          </p>
+        )}
+        <h3 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight group-hover:text-[var(--color-gold)] transition-colors">
+          {story.title}
+        </h3>
+        {story.subtitle && (
+          <p className="text-xs text-white/70 line-clamp-1">
+            {story.subtitle}
+          </p>
+        )}
+        <div
+          className={`mt-3 inline-flex items-center gap-1.5 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
+            isPrev ? '' : 'flex-row-reverse'
+          }`}
+          style={{ color: 'var(--color-gold)' }}
+        >
+          <span>관람하기</span>
+          <ArrowRight size={12} className={isPrev ? '' : 'rotate-180'} />
+        </div>
+      </div>
     </Link>
   )
 }
@@ -52,15 +121,9 @@ export default function ExhibitionNav({ prev, next }: ExhibitionNavProps) {
   if (!prev && !next) return null
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5 }}
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
-    >
-      <div>{prev && <MiniCard story={prev} direction="prev" />}</div>
-      <div>{next && <MiniCard story={next} direction="next" />}</div>
-    </motion.div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-fade-in">
+      <div>{prev && <ExhibitionCard story={prev} direction="prev" />}</div>
+      <div>{next && <ExhibitionCard story={next} direction="next" />}</div>
+    </div>
   )
 }

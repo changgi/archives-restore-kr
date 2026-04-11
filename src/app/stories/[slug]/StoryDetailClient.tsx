@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, BookOpen, FileText } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ExternalLink, BookOpen, FileText } from 'lucide-react'
 import type { FeaturedStory, OriginalDocument, DocumentPage } from '@/types'
 import ScrollProgress from '@/components/ScrollProgress'
 import ImageCompareSlider from '@/components/ImageCompareSlider'
@@ -206,74 +206,192 @@ export default function StoryDetailClient({ story, prevStory, nextStory, origina
       {(story.external_link || hasOriginalDocs) && (
         <section
           id="links"
-          className="py-20 md:py-32"
+          className="relative py-20 md:py-32 overflow-hidden"
           style={{ backgroundColor: 'var(--color-bg-secondary)' }}
         >
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <motion.div {...fadeInUp}>
-              <h2 className="text-2xl md:text-3xl font-bold mb-4">
-                원문 <span style={{ color: 'var(--color-gold)' }}>자료</span>
-              </h2>
-              <p className="text-sm mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-                원본 자료를 직접 확인해 보세요
+          {/* Decorative background pattern */}
+          <div
+            className="absolute inset-0 opacity-[0.03] pointer-events-none"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 1px 1px, var(--color-gold) 1px, transparent 0)',
+              backgroundSize: '32px 32px',
+            }}
+          />
+
+          {/* Decorative frame */}
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-16 opacity-40"
+            style={{
+              background:
+                'linear-gradient(to bottom, transparent, var(--color-gold))',
+            }}
+          />
+
+          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div {...fadeInUp} className="text-center mb-14">
+              <p
+                className="text-xs tracking-[0.3em] uppercase mb-4 font-medium"
+                style={{ color: 'var(--color-gold)' }}
+              >
+                Original Archives
               </p>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                {hasOriginalDocs && (
-                  <Link
-                    href={`/stories/${story.slug}/documents`}
-                    className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-medium text-black transition-all hover:scale-105"
-                    style={{ backgroundColor: 'var(--color-gold)' }}
-                  >
-                    <BookOpen size={18} />
-                    원문 직접 보기
-                  </Link>
-                )}
-
-                {story.external_link && (
-                  <a
-                    href={story.external_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-2 px-8 py-3 rounded-lg font-medium transition-all hover:scale-105 ${
-                      hasOriginalDocs
-                        ? 'border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[var(--color-gold)]/10'
-                        : 'text-black'
-                    }`}
-                    style={hasOriginalDocs ? {} : { backgroundColor: 'var(--color-gold)' }}
-                  >
-                    <ExternalLink size={18} />
-                    {story.external_link_label || '원본 사이트에서 보기'}
-                  </a>
-                )}
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <div
+                  className="h-px w-12 opacity-40"
+                  style={{ backgroundColor: 'var(--color-gold)' }}
+                />
+                <h2 className="text-3xl md:text-4xl font-bold">
+                  원문 <span style={{ color: 'var(--color-gold)' }}>자료</span>
+                </h2>
+                <div
+                  className="h-px w-12 opacity-40"
+                  style={{ backgroundColor: 'var(--color-gold)' }}
+                />
               </div>
+              <p
+                className="text-sm md:text-base max-w-xl mx-auto"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
+                역사의 숨결이 담긴 원본 자료를 직접 확인해 보세요
+              </p>
+            </motion.div>
 
-              {/* Document preview cards */}
-              {hasOriginalDocs && (
-                <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-left">
-                  {originalDocuments.slice(0, 3).map((doc, i) => (
+            {/* Document preview cards */}
+            {hasOriginalDocs && (
+              <motion.div
+                {...fadeInUp}
+                className="mb-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5"
+              >
+                {originalDocuments.slice(0, 3).map((doc) => {
+                  const pageCount = doc.document_pages?.length || 0
+                  const firstPage = doc.document_pages?.[0]
+                  return (
                     <Link
                       key={doc.id}
                       href={`/stories/${story.slug}/documents`}
-                      className="group rounded-xl border border-[var(--color-border)] hover:border-[var(--color-gold)]/50 p-4 transition-all"
-                      style={{ backgroundColor: 'var(--color-bg-card)' }}
+                      className="group relative rounded-xl border overflow-hidden transition-all duration-500 hover:-translate-y-1"
+                      style={{
+                        backgroundColor: 'var(--color-bg-card)',
+                        borderColor: 'var(--color-border)',
+                      }}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded bg-[var(--color-gold)]/10 flex items-center justify-center">
-                          <FileText size={16} style={{ color: 'var(--color-gold)' }} />
+                      {/* Paper texture effect at top */}
+                      <div
+                        className="relative h-32 overflow-hidden"
+                        style={{
+                          background:
+                            'linear-gradient(135deg, rgba(212,168,83,0.08), rgba(212,168,83,0.02))',
+                        }}
+                      >
+                        {firstPage?.image_url ? (
+                          <img
+                            src={firstPage.image_url}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-50 transition-opacity duration-500"
+                          />
+                        ) : null}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div
+                            className="w-14 h-14 rounded-xl flex items-center justify-center backdrop-blur-sm transition-transform duration-500 group-hover:scale-110"
+                            style={{
+                              backgroundColor: 'rgba(212,168,83,0.15)',
+                              border: '1px solid rgba(212,168,83,0.3)',
+                            }}
+                          >
+                            <FileText
+                              size={24}
+                              style={{ color: 'var(--color-gold)' }}
+                            />
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium line-clamp-2 group-hover:text-[var(--color-gold)] transition-colors">
-                            {doc.title}
+                        {/* Page count badge */}
+                        <div
+                          className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm"
+                          style={{
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            color: 'var(--color-gold)',
+                            border: '1px solid rgba(212,168,83,0.3)',
+                          }}
+                        >
+                          {pageCount} PAGES
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-5">
+                        <h3 className="text-sm font-bold line-clamp-2 mb-2 group-hover:text-[var(--color-gold)] transition-colors">
+                          {doc.title}
+                        </h3>
+                        {doc.description && (
+                          <p
+                            className="text-xs line-clamp-2 leading-relaxed"
+                            style={{ color: 'var(--color-text-muted)' }}
+                          >
+                            {doc.description}
                           </p>
-                          <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                            {doc.document_pages?.length || 0}페이지
-                          </p>
+                        )}
+                        <div
+                          className="mt-3 pt-3 border-t flex items-center justify-between text-xs font-medium"
+                          style={{ borderColor: 'var(--color-border)' }}
+                        >
+                          <span style={{ color: 'var(--color-text-muted)' }}>
+                            원문 열람
+                          </span>
+                          <BookOpen
+                            size={14}
+                            className="transition-transform duration-300 group-hover:translate-x-1"
+                            style={{ color: 'var(--color-gold)' }}
+                          />
                         </div>
                       </div>
                     </Link>
-                  ))}
-                </div>
+                  )
+                })}
+              </motion.div>
+            )}
+
+            {/* Main CTAs */}
+            <motion.div
+              {...fadeInUp}
+              className="flex flex-col sm:flex-row items-stretch justify-center gap-4 max-w-2xl mx-auto"
+            >
+              {hasOriginalDocs && (
+                <Link
+                  href={`/stories/${story.slug}/documents`}
+                  className="group relative flex-1 inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-bold text-black transition-all duration-300 hover:shadow-[0_10px_30px_-5px_rgba(212,168,83,0.5)]"
+                  style={{ backgroundColor: 'var(--color-gold)' }}
+                >
+                  <BookOpen size={20} />
+                  <span>원문 뷰어로 열람하기</span>
+                  <ArrowRight
+                    size={16}
+                    className="transition-transform duration-300 group-hover:translate-x-1"
+                  />
+                </Link>
+              )}
+
+              {story.external_link && (
+                <a
+                  href={story.external_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`group flex-1 inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-bold transition-all duration-300 ${
+                    hasOriginalDocs
+                      ? 'border-2 text-[var(--color-gold)] hover:bg-[var(--color-gold)]/5 hover:shadow-[0_10px_30px_-5px_rgba(212,168,83,0.2)]'
+                      : 'text-black hover:shadow-[0_10px_30px_-5px_rgba(212,168,83,0.5)]'
+                  }`}
+                  style={
+                    hasOriginalDocs
+                      ? { borderColor: 'var(--color-gold)' }
+                      : { backgroundColor: 'var(--color-gold)' }
+                  }
+                >
+                  <ExternalLink size={18} />
+                  <span>
+                    {story.external_link_label || '원본 사이트에서 보기'}
+                  </span>
+                </a>
               )}
             </motion.div>
           </div>
@@ -300,27 +418,69 @@ export default function StoryDetailClient({ story, prevStory, nextStory, origina
       {/* Section 7: Navigation */}
       <section
         id="nav"
-        className="py-20 md:py-32"
+        className="relative py-20 md:py-32 overflow-hidden"
         style={{ backgroundColor: 'var(--color-bg-secondary)' }}
       >
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div {...fadeInUp} className="mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold mb-2">
-              다른 <span style={{ color: 'var(--color-gold)' }}>전시</span>
-            </h2>
+        {/* Decorative top line */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-16 opacity-40"
+          style={{
+            background:
+              'linear-gradient(to bottom, transparent, var(--color-gold))',
+          }}
+        />
+
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div {...fadeInUp} className="text-center mb-14">
+            <p
+              className="text-xs tracking-[0.3em] uppercase mb-4 font-medium"
+              style={{ color: 'var(--color-gold)' }}
+            >
+              More Exhibitions
+            </p>
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div
+                className="h-px w-12 opacity-40"
+                style={{ backgroundColor: 'var(--color-gold)' }}
+              />
+              <h2 className="text-3xl md:text-4xl font-bold">
+                다른 <span style={{ color: 'var(--color-gold)' }}>전시</span>
+              </h2>
+              <div
+                className="h-px w-12 opacity-40"
+                style={{ backgroundColor: 'var(--color-gold)' }}
+              />
+            </div>
+            <p
+              className="text-sm md:text-base max-w-xl mx-auto"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              다른 기록유산 이야기도 함께 만나보세요
+            </p>
           </motion.div>
 
           <ExhibitionNav prev={prevStory} next={nextStory} />
 
-          <div className="mt-10 text-center">
+          <motion.div {...fadeInUp} className="mt-14 flex justify-center">
             <Link
               href="/stories"
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium border transition-all hover:scale-105"
-              style={{ borderColor: 'var(--color-gold)', color: 'var(--color-gold)' }}
+              className="group relative inline-flex items-center gap-3 px-8 py-3.5 rounded-full text-sm font-bold border-2 transition-all duration-300 hover:shadow-[0_10px_30px_-5px_rgba(212,168,83,0.3)]"
+              style={{
+                borderColor: 'var(--color-gold)',
+                color: 'var(--color-gold)',
+              }}
             >
-              전시 목록으로
+              <span className="tracking-wider">전시 목록 전체 보기</span>
+              <ArrowRight
+                size={16}
+                className="transition-transform duration-300 group-hover:translate-x-1"
+              />
+              <div
+                className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-10 transition-opacity duration-300"
+                style={{ backgroundColor: 'var(--color-gold)' }}
+              />
             </Link>
-          </div>
+          </motion.div>
         </div>
       </section>
     </>
