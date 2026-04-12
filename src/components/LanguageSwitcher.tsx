@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Globe, Check, X } from 'lucide-react'
+import { Globe, Check, X, Volume2 } from 'lucide-react'
 import { LOCALES, type Locale } from '@/i18n/config'
 import { useLocale } from '@/i18n/LanguageProvider'
+import { useVoiceSupport } from '@/i18n/useVoiceSupport'
 
 interface LanguageSwitcherProps {
   compact?: boolean
@@ -11,6 +12,7 @@ interface LanguageSwitcherProps {
 
 export default function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
   const { locale, setLocale, t } = useLocale()
+  const voiceSupported = useVoiceSupport()
   const [open, setOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -123,14 +125,23 @@ export default function LanguageSwitcher({ compact = false }: LanguageSwitcherPr
                     </span>
                     <span className="flex-1 min-w-0">
                       <span
-                        className="block text-sm font-bold leading-tight"
+                        className="flex items-center gap-1.5 text-sm font-bold leading-tight"
                         style={{
                           color: isActive
                             ? 'var(--color-gold)'
                             : 'var(--color-text)',
                         }}
                       >
-                        {l.nativeLabel}
+                        <span className="truncate">{l.nativeLabel}</span>
+                        {voiceSupported.has(l.code) && (
+                          <span
+                            title="Browser has a native voice for this language — dubbing supported"
+                            className="inline-flex items-center justify-center flex-shrink-0"
+                            style={{ color: 'var(--color-gold)', opacity: 0.7 }}
+                          >
+                            <Volume2 size={11} />
+                          </span>
+                        )}
                       </span>
                       <span
                         className="block text-[10px] mt-0.5"

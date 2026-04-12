@@ -18,6 +18,7 @@ import {
 import type { Messages } from './types'
 import { messages } from './messages'
 import AutoTranslate from './AutoTranslate'
+import AutoTranslateIndicator from '@/components/AutoTranslateIndicator'
 
 const STORAGE_KEY = 'restore.locale'
 const COOKIE_NAME = 'restore_locale'
@@ -119,7 +120,12 @@ export default function LanguageProvider({ children }: LanguageProviderProps) {
   return (
     <LanguageContext.Provider value={value}>
       {children}
-      {hydrated && <AutoTranslate />}
+      {hydrated && (
+        <>
+          <AutoTranslate />
+          <AutoTranslateIndicator />
+        </>
+      )}
     </LanguageContext.Provider>
   )
 }

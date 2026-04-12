@@ -23,6 +23,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useLocale } from './LanguageProvider'
+import { beginPass, bumpDone, addTotal, endPass } from './translateStore'
 
 const CACHE_VERSION = 'v1'
 const CACHE_KEY_PREFIX = 'ar.tx.' + CACHE_VERSION + '.'
@@ -275,6 +276,9 @@ async function translateCollected(
     }
   }
 
+  // Publish total to progress store
+  addTotal(allKeys.size)
+
   // Apply cached translations instantly
   for (const [src, tx] of cachedHits) {
     if (cancelled.v) return
@@ -283,6 +287,7 @@ async function translateCollected(
       textBuckets.get(src) ?? [],
       attrBuckets.get(src) ?? [],
     )
+    bumpDone()
   }
 
   // Batch the uncached strings
@@ -311,6 +316,7 @@ async function translateCollected(
         attrBuckets.get(src) ?? [],
       )
     }
+    bumpDone(batch.length)
   }
 }
 
@@ -347,6 +353,7 @@ export default function AutoTranslate() {
         return
       }
       inFlight = true
+      beginPass(locale, 0)
       try {
         const { texts, attrs } = scanEverything(document.body)
         await translateCollected(
@@ -359,6 +366,7 @@ export default function AutoTranslate() {
         )
       } finally {
         inFlight = false
+        endPass()
       }
       if (pending && !cancelled.v) {
         pending = false

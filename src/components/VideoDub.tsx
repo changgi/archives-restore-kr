@@ -399,7 +399,12 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
     lastIdxRef.current = -1
   }, [videoRef])
 
-  // Hook video timeupdate to trigger segment speech
+  // Hook video timeupdate to trigger segment speech. Crucially,
+  // when a new segment starts but the previous utterance is still
+  // playing, we PAUSE the video until the speech finishes, then
+  // resume + speak the new segment. This guarantees every line is
+  // spoken in full even when the target language runs longer than
+  // the original Korean audio.
   useEffect(() => {
     if (!enabled) return
     const video = videoRef.current
@@ -410,6 +415,17 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
     const sorted = [...activeSegments].sort(
       (a, b) => a.start_seconds - b.start_seconds,
     )
+
+    // --- State shared between the timeupdate handler and the
+    //     speech event callbacks ---
+    //
+    // isSpeaking: true while a SpeechSynthesisUtterance is playing
+    // autoPaused: true if WE paused the video (so we can ignore
+    //   the 'pause' event we trigger and know to resume). Critical
+    //   for not clobbering the user's own pause.
+    let isSpeaking = false
+    let autoPaused = false
+    let pendingSpeak: string | null = null
 
     const findActiveIdx = (t: number): number => {
       let lo = 0
@@ -427,7 +443,18 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       return ans
     }
 
-    const speakSegment = async (text: string) => {
+    const resumeVideo = () => {
+      if (!autoPaused) return
+      autoPaused = false
+      const p = video.play()
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          /* autoplay policy may reject — user can press play */
+        })
+      }
+    }
+
+    const speakSegment = (text: string) => {
       if (!text) return
       synth.cancel()
       const u = new SpeechSynthesisUtterance(text)
@@ -437,55 +464,108 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       u.pitch = 1.0
       u.volume = 1.0
       u.onstart = () => {
+        isSpeaking = true
         setStatus('speaking')
         setCurrentSubtitle(text)
       }
       u.onend = () => {
+        isSpeaking = false
         setStatus('ready')
-        // Clear the subtitle after a short grace period so it
-        // doesn't disappear the instant the voice stops
-        setTimeout(() => setCurrentSubtitle(''), 800)
+        // If we paused the video to wait for this utterance,
+        // resume playback now.
+        if (autoPaused) {
+          resumeVideo()
+        }
+        // Clear subtitle after a short grace period
+        setTimeout(() => setCurrentSubtitle(''), 600)
+        // If another segment was queued while we were speaking
+        // (e.g. fast-forward during speech), speak it now.
+        if (pendingSpeak) {
+          const next = pendingSpeak
+          pendingSpeak = null
+          speakSegment(next)
+        }
       }
-      u.onerror = () => setStatus('ready')
+      u.onerror = () => {
+        isSpeaking = false
+        setStatus('ready')
+        if (autoPaused) resumeVideo()
+      }
       synth.speak(u)
     }
 
-    const onTimeUpdate = async () => {
-      if (video.paused) return
-      const idx = findActiveIdx(video.currentTime)
-      if (idx < 0 || idx === lastIdxRef.current) return
-      lastIdxRef.current = idx
-      const seg = sorted[idx]
+    const handleNewSegment = async (seg: (typeof sorted)[number]) => {
       let text = translationsRef.current.get(seg.start_seconds)
       if (!text) {
         text = await translateLine(seg.text, locale)
         translationsRef.current.set(seg.start_seconds, text)
       }
-      speakSegment(text)
+      // If speech is still playing from the previous segment,
+      // pause the video so TTS can finish, then speak the new line
+      // when the current utterance ends. Otherwise speak immediately.
+      if (isSpeaking) {
+        if (!video.paused) {
+          autoPaused = true
+          video.pause()
+        }
+        pendingSpeak = text
+      } else {
+        speakSegment(text)
+      }
+    }
+
+    const onTimeUpdate = () => {
+      // If we auto-paused, ignore time updates until speech finishes
+      if (autoPaused) return
+      if (video.paused) return
+      const idx = findActiveIdx(video.currentTime)
+      if (idx < 0 || idx === lastIdxRef.current) return
+      lastIdxRef.current = idx
+      handleNewSegment(sorted[idx])
     }
 
     const onPause = () => {
+      // If we're the ones who paused (for TTS sync), don't cancel
+      // speech — we need it to finish so we can resume.
+      if (autoPaused) return
       synth.cancel()
+      isSpeaking = false
+      pendingSpeak = null
       setStatus('ready')
+    }
+    const onPlay = () => {
+      // User pressed play while we were waiting for TTS — forget
+      // the auto-pause flag since the user took manual control.
+      if (autoPaused && !isSpeaking) {
+        autoPaused = false
+      }
     }
     const onSeeking = () => {
       synth.cancel()
+      isSpeaking = false
+      autoPaused = false
+      pendingSpeak = null
       lastIdxRef.current = -1
       setStatus('ready')
     }
     const onEnded = () => {
       synth.cancel()
+      isSpeaking = false
+      autoPaused = false
+      pendingSpeak = null
       setStatus('ready')
     }
 
     video.addEventListener('timeupdate', onTimeUpdate)
     video.addEventListener('pause', onPause)
+    video.addEventListener('play', onPlay)
     video.addEventListener('seeking', onSeeking)
     video.addEventListener('ended', onEnded)
 
     return () => {
       video.removeEventListener('timeupdate', onTimeUpdate)
       video.removeEventListener('pause', onPause)
+      video.removeEventListener('play', onPlay)
       video.removeEventListener('seeking', onSeeking)
       video.removeEventListener('ended', onEnded)
     }
