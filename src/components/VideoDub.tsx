@@ -21,7 +21,16 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Mic, MicOff, Volume2 } from 'lucide-react'
+import {
+  Mic,
+  MicOff,
+  Volume2,
+  Settings2,
+  Download,
+  Check,
+  Gauge,
+  Captions,
+} from 'lucide-react'
 import type { VideoTranscript } from '@/types'
 import { useLocale } from '@/i18n/LanguageProvider'
 import { getLocaleDef, type Locale } from '@/i18n/config'
@@ -78,6 +87,56 @@ const PRIME_PHRASE: Record<Locale, string> = {
 
 const CACHE_PREFIX = 'ar.tx.v1.'
 const CONSENT_KEY = 'ar.dub.consent'  // set to 'yes' once the user enables dub
+const SETTINGS_KEY = 'ar.dub.settings'
+
+const PLAYBACK_RATES = [0.75, 1.0, 1.25, 1.5] as const
+type PlaybackRate = (typeof PLAYBACK_RATES)[number]
+
+interface DubSettings {
+  /** Whether to speak the TTS audio. When false, only karaoke subtitles show. */
+  ttsEnabled: boolean
+  /** Whether to render the karaoke subtitle overlay. */
+  subtitlesEnabled: boolean
+  /** Speech rate multiplier (SpeechSynthesisUtterance.rate). */
+  rate: PlaybackRate
+  /** Whether to auto-pause the video when TTS runs longer than the segment. */
+  pauseWhenBehind: boolean
+}
+
+const DEFAULT_SETTINGS: DubSettings = {
+  ttsEnabled: true,
+  subtitlesEnabled: true,
+  rate: 1.0,
+  pauseWhenBehind: true,
+}
+
+function readSettings(): DubSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (!raw) return DEFAULT_SETTINGS
+    const parsed = JSON.parse(raw) as Partial<DubSettings>
+    return {
+      ttsEnabled: parsed.ttsEnabled ?? DEFAULT_SETTINGS.ttsEnabled,
+      subtitlesEnabled:
+        parsed.subtitlesEnabled ?? DEFAULT_SETTINGS.subtitlesEnabled,
+      rate: (PLAYBACK_RATES.includes(parsed.rate as PlaybackRate)
+        ? (parsed.rate as PlaybackRate)
+        : DEFAULT_SETTINGS.rate),
+      pauseWhenBehind:
+        parsed.pauseWhenBehind ?? DEFAULT_SETTINGS.pauseWhenBehind,
+    }
+  } catch {
+    return DEFAULT_SETTINGS
+  }
+}
+
+function writeSettings(s: DubSettings): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
+  } catch {
+    /* quota */
+  }
+}
 
 function hasConsent(): boolean {
   try {
@@ -118,6 +177,55 @@ function writeCache(locale: string, text: string, tx: string): void {
   } catch {
     /* quota */
   }
+}
+
+/**
+ * Format seconds to SRT timestamp: HH:MM:SS,mmm
+ */
+function formatSrtTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = Math.floor(seconds % 60)
+  const ms = Math.floor((seconds - Math.floor(seconds)) * 1000)
+  return (
+    h.toString().padStart(2, '0') +
+    ':' +
+    m.toString().padStart(2, '0') +
+    ':' +
+    s.toString().padStart(2, '0') +
+    ',' +
+    ms.toString().padStart(3, '0')
+  )
+}
+
+/**
+ * Build an SRT subtitle file from translated segments.
+ * Each segment ends when the next one begins; the last segment
+ * ends 5 seconds after it starts (safe default).
+ */
+function buildSrt(
+  segments: { start_seconds: number; text: string }[],
+  videoDuration: number | null,
+): string {
+  const lines: string[] = []
+  const sorted = [...segments].sort(
+    (a, b) => a.start_seconds - b.start_seconds,
+  )
+  for (let i = 0; i < sorted.length; i++) {
+    const seg = sorted[i]
+    const nextStart =
+      i + 1 < sorted.length ? sorted[i + 1].start_seconds : null
+    const fallbackEnd =
+      videoDuration && videoDuration > seg.start_seconds
+        ? videoDuration
+        : seg.start_seconds + 5
+    const end = Math.min(nextStart ?? fallbackEnd, fallbackEnd)
+    lines.push(String(i + 1))
+    lines.push(formatSrtTime(seg.start_seconds) + ' --> ' + formatSrtTime(end))
+    lines.push(seg.text)
+    lines.push('')
+  }
+  return lines.join('\n')
 }
 
 async function translateLine(text: string, locale: Locale): Promise<string> {
@@ -218,6 +326,23 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
   // Karaoke subtitle state — shows the currently-speaking translated
   // line overlaid on the bottom of the video.
   const [currentSubtitle, setCurrentSubtitle] = useState('')
+  // Settings popover state
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settings, setSettings] = useState<DubSettings>(DEFAULT_SETTINGS)
+  const settingsRef = useRef(settings)
+  useEffect(() => {
+    settingsRef.current = settings
+  }, [settings])
+  // Load persisted settings on mount
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setSettings(readSettings()))
+    return () => cancelAnimationFrame(id)
+  }, [])
+  // Persist settings on change
+  useEffect(() => {
+    writeSettings(settings)
+  }, [settings])
+
   const lastIdxRef = useRef(-1)
   const cancelledRef = useRef(false)
   const translationsRef = useRef<Map<number, string>>(new Map())
@@ -390,6 +515,7 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
     setEnabled(false)
     setStatus('idle')
     setCurrentSubtitle('')
+    setSettingsOpen(false)
     clearConsent()
     window.speechSynthesis.cancel()
     const video = videoRef.current
@@ -398,6 +524,34 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
     }
     lastIdxRef.current = -1
   }, [videoRef])
+
+  /**
+   * Build + download an SRT file of the translated transcript.
+   * Triggers any missing translations synchronously-ish first.
+   */
+  const handleDownloadSrt = useCallback(async () => {
+    // Ensure every segment has a translation
+    const segments: { start_seconds: number; text: string }[] = []
+    for (const seg of activeSegments) {
+      let text = translationsRef.current.get(seg.start_seconds)
+      if (!text) {
+        text = await translateLine(seg.text, locale)
+        translationsRef.current.set(seg.start_seconds, text)
+      }
+      segments.push({ start_seconds: seg.start_seconds, text })
+    }
+    const video = videoRef.current
+    const srt = buildSrt(segments, video?.duration ?? null)
+    const blob = new Blob([srt], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'subtitles-' + locale + '.srt'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [activeSegments, locale, videoRef])
 
   // Hook video timeupdate to trigger segment speech. Crucially,
   // when a new segment starts but the previous utterance is still
@@ -454,19 +608,32 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       }
     }
 
+    const showSubtitle = (text: string) => {
+      if (!settingsRef.current.subtitlesEnabled) return
+      setCurrentSubtitle(text)
+    }
+
     const speakSegment = (text: string) => {
       if (!text) return
+      // Subtitle-only mode: show the caption, skip TTS entirely
+      if (!settingsRef.current.ttsEnabled) {
+        showSubtitle(text)
+        // Clear after a visual read-time (1s per 10 chars, min 2s, max 6s)
+        const readMs = Math.max(2000, Math.min(6000, text.length * 100))
+        setTimeout(() => setCurrentSubtitle(''), readMs)
+        return
+      }
       synth.cancel()
       const u = new SpeechSynthesisUtterance(text)
       u.lang = VOICE_LANG[locale]
       if (voice) u.voice = voice
-      u.rate = 1.0
+      u.rate = settingsRef.current.rate
       u.pitch = 1.0
       u.volume = 1.0
       u.onstart = () => {
         isSpeaking = true
         setStatus('speaking')
-        setCurrentSubtitle(text)
+        showSubtitle(text)
       }
       u.onend = () => {
         isSpeaking = false
@@ -500,10 +667,13 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
         text = await translateLine(seg.text, locale)
         translationsRef.current.set(seg.start_seconds, text)
       }
-      // If speech is still playing from the previous segment,
-      // pause the video so TTS can finish, then speak the new line
-      // when the current utterance ends. Otherwise speak immediately.
-      if (isSpeaking) {
+      // TTS-sync pausing: only applies when TTS is enabled AND the
+      // user has opted in via settings.pauseWhenBehind.
+      if (
+        isSpeaking &&
+        settingsRef.current.ttsEnabled &&
+        settingsRef.current.pauseWhenBehind
+      ) {
         if (!video.paused) {
           autoPaused = true
           video.pause()
@@ -666,6 +836,158 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
                   </span>
                 )}
               </div>
+              {/* Settings popover trigger */}
+              <div className="relative">
+                <button
+                  onClick={() => setSettingsOpen((v) => !v)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-md transition-colors hover:bg-white/10"
+                  style={{
+                    backgroundColor: settingsOpen
+                      ? 'rgba(212, 168, 83, 0.2)'
+                      : 'rgba(0, 0, 0, 0.7)',
+                    borderColor: settingsOpen
+                      ? 'rgba(212, 168, 83, 0.5)'
+                      : 'rgba(255, 255, 255, 0.2)',
+                    color: '#fff',
+                  }}
+                  aria-label="Dub settings"
+                  aria-expanded={settingsOpen}
+                >
+                  <Settings2 size={14} />
+                </button>
+
+                {settingsOpen && (
+                  <div
+                    className="absolute top-full right-0 mt-2 w-64 rounded-2xl border backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] z-50 animate-fade-in"
+                    style={{
+                      backgroundColor: 'rgba(15, 15, 15, 0.95)',
+                      borderColor: 'var(--color-border)',
+                    }}
+                  >
+                    {/* Header */}
+                    <div
+                      className="px-4 py-3 border-b"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    >
+                      <p
+                        className="text-[9px] tracking-[0.3em] uppercase font-medium"
+                        style={{ color: 'var(--color-gold)' }}
+                      >
+                        Dub Settings
+                      </p>
+                      {voice && (
+                        <p
+                          className="text-[10px] mt-1 truncate"
+                          style={{ color: 'var(--color-text-muted)' }}
+                        >
+                          {voice.name}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="p-3 space-y-1">
+                      {/* TTS audio toggle */}
+                      <SettingRow
+                        label="Voice audio"
+                        description="Speak translations aloud"
+                        checked={settings.ttsEnabled}
+                        onToggle={() =>
+                          setSettings((s) => ({
+                            ...s,
+                            ttsEnabled: !s.ttsEnabled,
+                          }))
+                        }
+                        icon={<Volume2 size={13} />}
+                      />
+                      {/* Subtitles toggle */}
+                      <SettingRow
+                        label="Subtitles"
+                        description="Show translated captions"
+                        checked={settings.subtitlesEnabled}
+                        onToggle={() =>
+                          setSettings((s) => ({
+                            ...s,
+                            subtitlesEnabled: !s.subtitlesEnabled,
+                          }))
+                        }
+                        icon={<Captions size={13} />}
+                      />
+                      {/* Pause-when-behind toggle */}
+                      <SettingRow
+                        label="Sync pausing"
+                        description="Pause video if voice runs long"
+                        checked={settings.pauseWhenBehind}
+                        onToggle={() =>
+                          setSettings((s) => ({
+                            ...s,
+                            pauseWhenBehind: !s.pauseWhenBehind,
+                          }))
+                        }
+                        icon={<Gauge size={13} />}
+                      />
+                    </div>
+
+                    {/* Playback rate selector */}
+                    {settings.ttsEnabled && (
+                      <div
+                        className="px-4 py-3 border-t"
+                        style={{ borderColor: 'var(--color-border)' }}
+                      >
+                        <p
+                          className="text-[10px] tracking-[0.2em] uppercase mb-2 font-medium"
+                          style={{ color: 'var(--color-text-muted)' }}
+                        >
+                          Speed
+                        </p>
+                        <div className="flex items-center gap-1">
+                          {PLAYBACK_RATES.map((r) => (
+                            <button
+                              key={r}
+                              onClick={() =>
+                                setSettings((s) => ({ ...s, rate: r }))
+                              }
+                              className="flex-1 px-2 py-1 rounded text-[10px] font-bold tabular-nums transition-colors"
+                              style={{
+                                backgroundColor:
+                                  settings.rate === r
+                                    ? 'var(--color-gold)'
+                                    : 'var(--color-bg-card)',
+                                color: settings.rate === r ? '#000' : 'var(--color-text-secondary)',
+                                border:
+                                  '1px solid ' +
+                                  (settings.rate === r
+                                    ? 'var(--color-gold)'
+                                    : 'var(--color-border)'),
+                              }}
+                            >
+                              {r.toFixed(2)}x
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Download SRT */}
+                    <div
+                      className="px-3 py-3 border-t"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    >
+                      <button
+                        onClick={handleDownloadSrt}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-bold border transition-colors hover:bg-[var(--color-bg-hover)]"
+                        style={{
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-gold)',
+                        }}
+                      >
+                        <Download size={13} />
+                        <span>Download subtitles (.srt)</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={handleDisable}
                 className="w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-md transition-colors hover:bg-white/10"
@@ -683,5 +1005,81 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
         </div>
       </div>
     </>
+  )
+}
+
+// ─── Settings row subcomponent ───────────────────────────────────
+interface SettingRowProps {
+  label: string
+  description: string
+  checked: boolean
+  onToggle: () => void
+  icon: React.ReactNode
+}
+
+function SettingRow({
+  label,
+  description,
+  checked,
+  onToggle,
+  icon,
+}: SettingRowProps) {
+  return (
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+    >
+      <div
+        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{
+          backgroundColor: checked
+            ? 'rgba(212, 168, 83, 0.15)'
+            : 'var(--color-bg-card)',
+          color: checked ? 'var(--color-gold)' : 'var(--color-text-muted)',
+        }}
+      >
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-[11px] font-bold leading-none"
+          style={{
+            color: checked ? 'var(--color-gold)' : 'var(--color-text)',
+          }}
+        >
+          {label}
+        </p>
+        <p
+          className="text-[9px] mt-1 leading-none"
+          style={{ color: 'var(--color-text-muted)' }}
+        >
+          {description}
+        </p>
+      </div>
+      <div
+        className="flex-shrink-0 w-8 h-5 rounded-full transition-colors relative"
+        style={{
+          backgroundColor: checked
+            ? 'var(--color-gold)'
+            : 'var(--color-bg-card)',
+          border: '1px solid ' + (checked ? 'var(--color-gold)' : 'var(--color-border)'),
+        }}
+      >
+        <div
+          className="absolute top-0.5 w-3.5 h-3.5 rounded-full transition-all"
+          style={{
+            backgroundColor: checked ? '#000' : 'var(--color-text-muted)',
+            left: checked ? 'calc(100% - 16px)' : '2px',
+          }}
+        />
+      </div>
+      {checked && (
+        <Check
+          size={11}
+          strokeWidth={2.5}
+          style={{ color: 'var(--color-gold)', display: 'none' }}
+        />
+      )}
+    </button>
   )
 }
