@@ -75,7 +75,23 @@
       "Bash(grep -v \"^$\")",
       "Bash(node -e \"const fs=require\\('fs'\\);const p='src/app/layout.tsx';let c=fs.readFileSync\\(p,'utf8'\\);const startMarker='        <Analytics />\\\\n        <SpeedInsights />\\\\n\\\\n        <footer';const endMarker='        </footer>\\\\n      </body>';const start=c.indexOf\\(startMarker\\);const end=c.indexOf\\(endMarker\\);if\\(start<0||end<0\\){console.error\\('markers not found', start, end\\);process.exit\\(1\\);}const keep='        <Analytics />\\\\n        <SpeedInsights />\\\\n      </body>';c=c.slice\\(0,start\\)+keep+c.slice\\(end+endMarker.length\\);fs.writeFileSync\\(p,c\\);console.log\\('removed footer block, new size:', c.split\\('\\\\n'\\).length,'lines'\\)\")",
       "Bash(node -e ':*)",
-      "Bash(node scripts/add_learn_about.mjs)"
+      "Bash(node scripts/add_learn_about.mjs)",
+      "Bash(whisper --help)",
+      "Bash(where whisper:*)",
+      "Bash(python -c \"import whisper; print\\(whisper.__version__\\)\")",
+      "Bash(whisper public/videos/video_3.mp4 --language ko --model small --condition_on_previous_text False --output_format json --output_dir .whisper-out --verbose False)",
+      "Bash(whisper public/videos/video_4.mp4 --language ko --model small --condition_on_previous_text False --output_format json --output_dir .whisper-out --verbose False)",
+      "Bash(whisper public/videos/video_6.mp4 --language ko --model small --condition_on_previous_text False --output_format json --output_dir .whisper-out --verbose False)",
+      "Bash(whisper public/videos/video_8.mp4 --language ko --model small --condition_on_previous_text False --output_format json --output_dir .whisper-out --verbose False)",
+      "Bash(ls -la .whisper-out/*.json)",
+      "Bash(tasklist)",
+      "Bash(wmic process:*)",
+      "Bash(whisper public/videos/video_3.mp4 --language ko --model small --condition_on_previous_text False --output_format json --output_dir .whisper-out)",
+      "Bash(python -c \"import json; d=json.load\\(open\\('.whisper-out/video_3.json','r',encoding='utf-8'\\)\\); print\\('segments:', len\\(d.get\\('segments',[]\\)\\)\\); [print\\(f\\\\\"{s['start']:.1f}-{s['end']:.1f}: {s['text'][:50]}\\\\\"\\) for s in d['segments'][-5:]]\")",
+      "Bash(ffmpeg -ss 88 -i public/videos/video_3.mp4 -vf \"fps=0.5,scale=640:-1\" -q:v 2 .ocr-frames/video_3/frame_%04d.jpg)",
+      "Bash(ffmpeg -ss 77 -i public/videos/video_4.mp4 -vf \"fps=0.2,scale=640:-1\" -q:v 2 .ocr-frames/video_4/frame_%04d.jpg)",
+      "Bash(ffmpeg -ss 126 -i public/videos/video_6.mp4 -vf \"fps=0.2,scale=640:-1\" -q:v 2 .ocr-frames/video_6/frame_%04d.jpg)",
+      "Bash(ffmpeg -ss 173 -i public/videos/video_8.mp4 -vf \"fps=0.2,scale=640:-1\" -q:v 2 .ocr-frames/video_8/frame_%04d.jpg)"
     ]
   }
 }
