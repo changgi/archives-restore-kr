@@ -570,16 +570,37 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       (a, b) => a.start_seconds - b.start_seconds,
     )
 
-    // --- State shared between the timeupdate handler and the
-    //     speech event callbacks ---
+    // ── Predictive segment-duration-aware pause ─────────────────
     //
-    // isSpeaking: true while a SpeechSynthesisUtterance is playing
-    // autoPaused: true if WE paused the video (so we can ignore
-    //   the 'pause' event we trigger and know to resume). Critical
-    //   for not clobbering the user's own pause.
+    // For each segment i we know:
+    //   - segStart = sorted[i].start_seconds
+    //   - segEnd   = sorted[i+1].start_seconds (or video.duration)
+    //   - frameDur = segEnd - segStart   ← how long the text is on screen
+    //
+    // After speaking starts we measure how long the TTS utterance
+    // actually took (speechEnd - speechStart). If speechDuration >
+    // frameDur, we pause the video for exactly (speechDuration -
+    // frameDur) seconds so the viewer can hear every word before
+    // the scene advances.
+    //
+    // This matches the user's request: "장면에 있는 글자를 다 읽고
+    // 다음장면으로 갈 수 있도록" — read all text in the current
+    // frame, then move to the next frame.
+
     let isSpeaking = false
     let autoPaused = false
-    let pendingSpeak: string | null = null
+    let pendingSpeak: { text: string; segIdx: number } | null = null
+    let pauseTimerId: ReturnType<typeof setTimeout> | null = null
+    let speechStartedAt = 0     // performance.now() when utterance started
+
+    // Pre-compute each segment's on-screen duration
+    const segDurations = sorted.map((seg, i) => {
+      const nextStart =
+        i + 1 < sorted.length
+          ? sorted[i + 1].start_seconds
+          : video.duration || seg.start_seconds + 5
+      return Math.max(0.5, nextStart - seg.start_seconds)
+    })
 
     const findActiveIdx = (t: number): number => {
       let lo = 0
@@ -600,10 +621,14 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
     const resumeVideo = () => {
       if (!autoPaused) return
       autoPaused = false
+      if (pauseTimerId) {
+        clearTimeout(pauseTimerId)
+        pauseTimerId = null
+      }
       const p = video.play()
       if (p && typeof p.catch === 'function') {
         p.catch(() => {
-          /* autoplay policy may reject — user can press play */
+          /* autoplay policy may reject */
         })
       }
     }
@@ -613,12 +638,37 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       setCurrentSubtitle(text)
     }
 
-    const speakSegment = (text: string) => {
+    /**
+     * Schedule a precise pause at the moment the current frame
+     * is about to end, if speech will still be going.
+     *
+     * Called from utterance.onstart with the segment index so we
+     * know the frame's remaining display time.
+     */
+    const schedulePauseIfNeeded = (segIdx: number) => {
+      if (!settingsRef.current.pauseWhenBehind) return
+      if (!settingsRef.current.ttsEnabled) return
+      // How much of the frame is left from the moment speech started?
+      const elapsed = video.currentTime - sorted[segIdx].start_seconds
+      const remaining = Math.max(0, segDurations[segIdx] - elapsed)
+      // We'll pause the video at the exact frame-end if speech is
+      // still going at that point. The check happens inside the
+      // timeout callback.
+      if (pauseTimerId) clearTimeout(pauseTimerId)
+      pauseTimerId = setTimeout(() => {
+        pauseTimerId = null
+        if (isSpeaking && !video.paused) {
+          autoPaused = true
+          video.pause()
+        }
+      }, remaining * 1000)
+    }
+
+    const speakSegment = (text: string, segIdx: number) => {
       if (!text) return
-      // Subtitle-only mode: show the caption, skip TTS entirely
+      // Subtitle-only mode: show caption, skip TTS
       if (!settingsRef.current.ttsEnabled) {
         showSubtitle(text)
-        // Clear after a visual read-time (1s per 10 chars, min 2s, max 6s)
         const readMs = Math.max(2000, Math.min(6000, text.length * 100))
         setTimeout(() => setCurrentSubtitle(''), readMs)
         return
@@ -632,43 +682,55 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       u.volume = 1.0
       u.onstart = () => {
         isSpeaking = true
+        speechStartedAt = performance.now()
         setStatus('speaking')
         showSubtitle(text)
+        // Schedule a precise pause at the frame boundary
+        schedulePauseIfNeeded(segIdx)
       }
       u.onend = () => {
         isSpeaking = false
         setStatus('ready')
-        // If we paused the video to wait for this utterance,
-        // resume playback now.
-        if (autoPaused) {
-          resumeVideo()
+        // Clear the pending pause timer if speech finished before
+        // the frame ended (speech was faster than the frame — no
+        // pause needed, the ideal case)
+        if (pauseTimerId) {
+          clearTimeout(pauseTimerId)
+          pauseTimerId = null
         }
+        // Resume if we paused for this utterance
+        if (autoPaused) resumeVideo()
         // Clear subtitle after a short grace period
-        setTimeout(() => setCurrentSubtitle(''), 600)
-        // If another segment was queued while we were speaking
-        // (e.g. fast-forward during speech), speak it now.
+        setTimeout(() => setCurrentSubtitle(''), 500)
+        // Speak any queued segment (from fast-forward etc.)
         if (pendingSpeak) {
-          const next = pendingSpeak
+          const { text: next, segIdx: nextIdx } = pendingSpeak
           pendingSpeak = null
-          speakSegment(next)
+          speakSegment(next, nextIdx)
         }
       }
       u.onerror = () => {
         isSpeaking = false
         setStatus('ready')
+        if (pauseTimerId) {
+          clearTimeout(pauseTimerId)
+          pauseTimerId = null
+        }
         if (autoPaused) resumeVideo()
       }
       synth.speak(u)
     }
 
-    const handleNewSegment = async (seg: (typeof sorted)[number]) => {
+    const handleNewSegment = async (segIdx: number) => {
+      const seg = sorted[segIdx]
       let text = translationsRef.current.get(seg.start_seconds)
       if (!text) {
         text = await translateLine(seg.text, locale)
         translationsRef.current.set(seg.start_seconds, text)
       }
-      // TTS-sync pausing: only applies when TTS is enabled AND the
-      // user has opted in via settings.pauseWhenBehind.
+      // If speech is still playing from the previous segment and
+      // pause-when-behind is on, queue the new line so it plays
+      // after the current utterance finishes.
       if (
         isSpeaking &&
         settingsRef.current.ttsEnabled &&
@@ -678,34 +740,34 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
           autoPaused = true
           video.pause()
         }
-        pendingSpeak = text
+        pendingSpeak = { text, segIdx }
       } else {
-        speakSegment(text)
+        speakSegment(text, segIdx)
       }
     }
 
     const onTimeUpdate = () => {
-      // If we auto-paused, ignore time updates until speech finishes
       if (autoPaused) return
       if (video.paused) return
       const idx = findActiveIdx(video.currentTime)
       if (idx < 0 || idx === lastIdxRef.current) return
       lastIdxRef.current = idx
-      handleNewSegment(sorted[idx])
+      handleNewSegment(idx)
     }
 
     const onPause = () => {
-      // If we're the ones who paused (for TTS sync), don't cancel
-      // speech — we need it to finish so we can resume.
+      // If we paused for TTS sync, don't cancel speech
       if (autoPaused) return
       synth.cancel()
       isSpeaking = false
       pendingSpeak = null
+      if (pauseTimerId) {
+        clearTimeout(pauseTimerId)
+        pauseTimerId = null
+      }
       setStatus('ready')
     }
     const onPlay = () => {
-      // User pressed play while we were waiting for TTS — forget
-      // the auto-pause flag since the user took manual control.
       if (autoPaused && !isSpeaking) {
         autoPaused = false
       }
@@ -715,6 +777,10 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       isSpeaking = false
       autoPaused = false
       pendingSpeak = null
+      if (pauseTimerId) {
+        clearTimeout(pauseTimerId)
+        pauseTimerId = null
+      }
       lastIdxRef.current = -1
       setStatus('ready')
     }
@@ -723,6 +789,10 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       isSpeaking = false
       autoPaused = false
       pendingSpeak = null
+      if (pauseTimerId) {
+        clearTimeout(pauseTimerId)
+        pauseTimerId = null
+      }
       setStatus('ready')
     }
 
@@ -738,6 +808,7 @@ export default function VideoDub({ videoRef, transcripts }: VideoDubProps) {
       video.removeEventListener('play', onPlay)
       video.removeEventListener('seeking', onSeeking)
       video.removeEventListener('ended', onEnded)
+      if (pauseTimerId) clearTimeout(pauseTimerId)
     }
   }, [enabled, activeSegments, locale, voice, videoRef])
 
